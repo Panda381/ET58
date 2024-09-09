@@ -1,0 +1,42 @@
+; ML-23 DMS operations
+; (dd.mmss)
+;   n        +- p     * a     / a  
+
+; LBL A: Enter 1st number in dd.mmss format
+; LBL B: Add 2nd number in dd.mmss format
+; LBL C: Multiply time by scalar constant 'a'
+; LBL D: Divide time by scalar constant 'a'
+
+; Registers
+;  H1 ... 1st number in decimal format
+
+; LBL B: Add 2nd number in dd.mmss format
+LBL B
+	( DMS 		; convert dd.mmss to decimals
+	+ 		; add number
+LBL E 
+	HIR 11 ) 	; RCL H1, get 1st number
+	( CE + 		; result
+	( CE / IXI ) 	; result / abs, get sign
+	CE * 
+	5 +/- INV LOG ) ; * 0.000001
+	INV DMS 	; convert do dd.mmss format
+	FIX 4 		; result fixed to 4 decimal places
+	RTN
+
+; LBL C: Multiply time by scalar constant 'a'
+LBL C 
+	( CE * 		; scalar constant *
+	GTO E
+
+; LBL D: Divide time by scalar constant 'a'
+LBL D 
+	( 1/X * 	; 1 / scalar constant
+	GTO E
+
+; LBL A: Enter 1st number in dd.mmss format
+LBL A 
+	INV FIX 	; no rounding
+	DMS 		; convert dd.mmss to decimals
+	HIR 01 		; STO H1, save 1st number
+	RTN

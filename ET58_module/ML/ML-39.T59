@@ -1,0 +1,57 @@
+; ML-39 (MU-09) Prime Factors
+;
+;  Prime
+
+; LBL A: Enter integer and find prime factors, continue with R/S, 1=no next prime factor
+
+; Registers:
+;  H1 ... integer N
+;  H2 ... divisor D to check
+
+; LBL A: Enter integer and find first prime factors, continue with R/S, 1=no next prime factor
+LBL A
+	; initialize
+	ROU		; round to integer
+	HIR 01		; STO H1, integer N
+	2 		; starting with divisor 2
+LBL COS
+	HIR 02		; STO H2, divisor D to check
+LBL =
+	; prepare max. result
+	HIR 12		; RCL H2, divisor D to check
+	X/T
+
+	; try to divide
+	( HIR 11	; RCL H1, integer N
+	/ HIR 12 )	; RCL H2, divisor D to check
+
+	; check end of iteration
+	INV GE SQR	; if result < D then no next prime
+
+	; check if result is integer
+	INV INT		; get fraction
+	CP		; clear register T
+	EQ SIN		; result is integer
+
+	; increase divisor
+	3 X/T		; 3 -> reg. T
+	HIR 12		; RCL H2, divisor D to check
+	( CE + 1 )	; increase divisor
+	EQ COS		; divisor is 3, OK
+	( CE + 1 ) ROU	; increase divisor, odd number
+	GTO COS
+
+LBL SIN
+	; prime factor has been found, display it
+	HIR 12		; RCL H2, divisor D to check
+	HIR 61		; INV Prd H1, new integer N
+	HIR 21		; Round H1
+	RTN		; wait for R/S
+	GTO =		; continue
+
+LBL SQR
+	; no next prime
+	1
+	HIR 91		; Exc H1, integer N
+	RTN
+	GTO =		; continue

@@ -1,0 +1,119 @@
+; ML-08 Zero of Functions
+;
+;   ZERO         f(x)  GRAPH
+
+; To use, first create function in main program, with label A'.
+
+; LBL A: Enter end X of range interval, press X/T, enter start X of range, press A.
+;        After a few seconds you will see X crossing zero, or flashing '999..' to indicate error.
+;        If you press A again, new zero cross will be searching, starting at current X coordinate.
+;        Or you can enter new start and/or end X value.
+; LBL D: Get value of function at X
+; LBL E: draw graph in range T..X
+
+; Note: Zero cross may not be found, if it lies right at start of interval. In such case
+; better to enter start of interval a little smaller.
+
+; Test range is first searched with step of 1/100 of the interval. If there are too many
+; zero crosses, beter to search with smaller interval range to find them all.
+
+; Registers for graph:
+;  H1 ... lower limit 'a'
+;  H2 ... upper limit 'b'
+;  H3 ... loop counter
+;  H4 ... minimum y
+;  H5 ... maximum y
+;  H6 ... step dx
+;  H7 ... current x
+
+; LBL A: search zero of function A' in main program, in interval T..X
+LBL A
+	OP 70	; search zero of function A' (in main program)
+	RTN
+
+; LBL D: Get value of function at X
+LBL D 
+	PGM 00 A' 
+	RTN 
+
+; LBL E: draw graph of user function A' (enter: reg. T = maximum x, reg. X = minimum x)
+; - called from ML-09
+LBL E
+	HIR 01		; STO H1, lower limit
+	X/T
+	HIR 02		; STO H2, upper limit
+	X/T
+
+	; prepare minimum and maximum
+	CLR
+	1 EE 99 HIR 04		; STO H4, initialize minimum y
+	1 EE 99 +/- HIR 05	; STO H5, initialize maximum y
+	INV EE
+
+	; prepare delta x
+	HIR 12			; RCL H2, upper limit
+	- HIR 11 HIR 07		; RCL H1, STO H7, lower limit
+	= / 1 6 = HIR 06	; STO H6, delta dx
+	/ 2 = HIR 31 HIR 37	; ADD H1, shift start x
+
+	; search minimum and maximum y
+	1 6 HIR 03		; STO H3, loop counter
+
+LBL CLR ; calculate y
+	HIR 17			; RCL H7, current x
+	PGM 0 A'		; call function from main
+
+	; update minimum y
+	X/T HIR 14		; RCL H4, minimum y
+	OP 78			; get minimum
+	HIR 04			; STO H4, set new minimum
+
+	; update maximum y
+	HIR 15			; RCL H5, maximum y
+	OP 77			; get maximum
+	HIR 05			; STO H5, set new maximum
+
+	; increase x
+	REG 97 06		; SUM H7 H6, add H6 delta x to H7 current x
+	HIR 0E3 CLR		; DJNZ H3 CLR, decrement H3 and jump to CLR if H3 > 0
+
+	; prepare to draw graph
+	REG 87 01		; MOV H7 H1, set H7 current x to H1 lower limit
+	REG 0B3 16		; CONST H3 16, set loop counter H3 = 16
+
+	; correction if max = min
+	IF 0D4 05 SBR		; skip if H4 <> H5
+	HIR 75			; INC H5, increment maximum (correction for small numbers)
+	REG 95 05		; SUM H5 H5 (correction for big numbers)
+
+LBL SBR ; prepare column
+	1 6 - HIR 13 = X/T	; RCL H3, get column index 0..15
+
+	; calculate y
+	HIR 17			; RCL H7, current x
+	PGM 0 A'		; call function from main
+
+	; convert range
+	- HIR 14 =		; RCL H4, subtract minimum y
+	/ ( HIR 15 - HIR 14 )	; RCL H5, RCL H4, divide by interval of y
+	= * 1 6 = ROU		; round, to get number 0..16
+
+	; display graph column
+	OP 4B
+
+	; increase x
+	REG 97 06		; SUM H7 H6, add H6 delta x to H7 current x
+	HIR 0E3 SBR		; DJNZ H3 SBR, decrement H3 and jump to SBR if H3 > 0
+
+	2 5 5 X/T		; 255 = no key flag
+
+LBL LBL ; wait for a key
+	OP 40			; input key from keyboard
+	EQ LBL
+	CLR
+
+	HIR 12		; RCL H2, upper limit
+	X/T
+	HIR 11		; RCL H1, lower limit
+	- HIR 16 / 2 =	; RCL H6, return old value
+	RTN

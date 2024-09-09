@@ -1,0 +1,86 @@
+; ML-04 Complex Arithmetic
+;    INIT   X-Y  X:Y  logyX  X<>Y
+;    ENTER  X+Y  XxY  X^Y    X^1/Y
+
+; LBL A: enter number into stack (to use: enter real part, press X/T, enter imaginary part, press A)
+; LBL A': initialize stack to memory registers R10..R29
+; LBL B: add numbers X + Y
+; LBL B': subtract numbery X - Y
+; LBL C: multiply numbers X x Y
+; LBL C': divide numbers X : Y
+; LBL D: power numbers X ^ Y
+; LBL D': logarithm X with base Y
+; LBL E: power root numbers X ^ 1/Y
+; LBL E': exchange last 2 top numbers
+
+; 1) initialize stack A' (uses variables R10..R29)
+; 2) to enter X: enter real part of X, press X/T, enter imaginare part of X, press A (enter number to the stack)
+; 3) to enter Y: repeat step 2)
+; 4) to add X + Y: press B)X+Y, result will be show, 1st row is real part, 2nd row is imaginare part
+
+; Display format:
+; - 1st row reg. T real part, 2nd row reg. X imaginare part
+; - 1st row reg. T radius, 2nd row reg. X angle in radians
+
+; Registers:
+;  R10..R29 stack of 10 complex numbers
+
+; LBL A: Enter number into the stack (enter real part, press X/T, enter imaginary part, press A)
+LBL A
+	OP 57	; store number to the stack
+	RTN
+
+; LBL A': Initialize stack of complex numbers
+; - called from Pgm 05, Pgm 06 and Pgm 26
+LBL A'
+	OP 1E	; set format X + T
+	CLR
+	1 0	; first memory register
+	X/T	; T <- first memory
+	1 0	; number of complex numbers in the stack
+	OP 55	; initialize stack
+	CLR
+	CP
+	RTN
+
+; LBL B: Add numbers X + Y
+LBL B
+	OP 5C	; add numbers
+LBL =
+	OP 58	; load result
+	RTN
+
+; LBL B': Subtract numbers X - Y
+LBL B'
+	OP 5D	; subtract numbers
+	GTO =
+
+; LBL C: Multiply numbers X * Y
+LBL C
+	OP 5E	; multiply numbers
+	GTO =
+
+; LBL C': Divide numbers X / Y
+LBL C'
+	OP 5F	; divide numbers
+	GTO =
+
+; LBL D: Power numbers X ^ Y
+LBL D
+	OP 60	; power numbers
+	GTO =
+
+; LBL D': logy x = ln(x)/ln(y), X != 0, Y != 0
+LBL D'
+	OP 62	; logarithm logy x
+	GTO =
+
+; LBL E: Root numbers X ^ 1/Y
+LBL E
+	OP 61	; power root numbers
+	GTO =
+
+; LBL E': Exchange numbers
+LBL E'
+	OP 5A	; exchange numbers
+	GTO =

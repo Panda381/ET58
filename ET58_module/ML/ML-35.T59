@@ -1,0 +1,82 @@
+; ML-35 Ohm's Law
+; ->U   ->I   ->R   ->Pui  Pu->R
+;  U     I     R    Pr->U  Pr->I
+
+; LBL A: Enter voltage U
+; LBL A': Get voltage U
+; LBL B: Enter current I
+; LBL B': Get current I
+; LBL C: Enter resistance R
+; LBL C': Get resistance R
+; LBL D: Enter power and get voltage on resistor
+; LBL D': Get power from voltage and current
+; LBL E: Enter power and get current on resistor
+; LBL E': Enter power ad get resistor from voltage
+
+; Registers:
+;  H1 ... voltage U
+;  H2 ... current I
+;  H3 ... resistance R
+
+; LBL A': Get voltage U
+;  U = I*R
+LBL A'
+	( HIR 12	; RCL H2, current I
+	* HIR 13 )	; RCL H3, resistance R
+
+; LBL A: Enter voltage U
+LBL A
+	HIR 01		; STO H1, voltage U
+	RTN
+
+; LBL B': Get current I
+;  I = U/R
+LBL B'
+	( HIR 11	; RCL H1, voltage U
+	/ HIR 13 )	; RCL H3, resistance R
+
+; LBL B: Enter current I
+LBL B
+	HIR 02		; STO H2, current I
+	RTN
+
+; LBL C': Get resistance R
+;  R = U/I
+LBL C'
+	( HIR 11	; RCL H1, voltage U
+	/ HIR 12 )	; RCL H2, current I
+
+; LBL C: Enter resistance R
+LBL C
+	HIR 03		; STO H3, resistance R
+	RTN
+
+; LBL D: Enter power and get voltage on resistor
+;  U = sqrt(P*R)
+LBL D
+	( CE
+	* HIR 13 )	; RCL H3, resistance R
+	SQR
+	RTN
+
+; LBL D': Get power from voltage and current
+;  P = U*I
+LBL D'
+	( HIR 11	; RCL H1, voltage U
+	* HIR 12 )	; RCL H2, current I
+	RTN
+
+; LBL E: Enter power and get current on resistor
+;  I = sqrt(P/R)
+LBL E
+	( CE
+	/ HIR 13 )	; RCL H3, resistance R
+	SQR
+	RTN
+
+; LBL E': Enter power ad get resistor from voltage
+;  R = U^2/P
+LBL E'
+	( 1/X *		; 1/power
+	HIR 11 X2 )	; RCL H1, voltage U
+	RTN

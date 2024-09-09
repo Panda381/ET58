@@ -1,0 +1,28 @@
+; ML-36 Series and parallel
+;  RLC   +RLs,Cp  +RLp,Cs
+
+; LBL A: Initialize first resistor/capacitor/inductor
+; LBL B: Add series resistor/inductor, parallel capacitor
+; LBL C: Add parallel resistor/inductor, series capacitor
+
+; Registers:
+;  H1 ... current value
+
+; LBL A: Initialize first resistor/capacitor/inductor
+LBL A
+	HIR 01		; STO H1
+	RTN
+
+; LBL B: Add series resistor/inductor, parallel capacitor
+LBL B
+	HIR 31		; SUM H1
+	HIR 11		; RCL H1
+	RTN
+
+; LBL C: Add parallel resistor/inductor, series capacitor
+LBL C
+	( 1/X +
+	HIR 11 1/X )	; RCL H1
+	1/X
+	HIR 01		; STO H1
+	RTN

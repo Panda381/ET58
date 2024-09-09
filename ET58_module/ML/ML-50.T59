@@ -1,0 +1,173 @@
+; ML-50 (LE-20) Sea Battle Game
+;  ?Range ?Bear ?Display       Clear
+;  Range  Bear   Fire          Start
+
+; Shooting coming submarine from missile frigate. Submarine starts at distance
+; 15000 yeards at unknown bearing and is comming toward at speed 30 knots per minute.
+; Every turn takes 1 minute. Near shots slowes down submarine.
+
+; LBL A: Enter range in yards. 0=not fire missile, only move sub closer.
+; LBL A': Display last range.
+; LBL B: Enter bearing in degrees.
+; LBL B': Display last bearing.
+; LBL C: Fire missile with given range and bearing. Every turn takes 1 minute.
+;        Display status XXXX.NN (XXXX=distance, NN=number of missiles).
+;        Flash XXXX.00 = no missile left. 0.NN = miss over 5000 yds. Flash "XX.NN" = sub sunk.
+; LBL C': Recall last shot display
+; LBL E: Start new game. Start value 15000.15 (15000 yards and 15 missiles).
+
+; Registers:
+;  H0 ... number of missiles
+;  H1 ... range d in yards
+;  H2 ... bearing b in degrees
+;  H4 ... 0.2
+;  H5 ... 1
+;  H6 ... bearing difference in radians
+;  H7 ... randomizer
+;  R8 ... submarine bearing in radians
+;  R9 ... submarine coming speed in knots (30 knots = 1000 yards per minute, minimum 6 knots = 200 yards per minute)
+
+; Decrement number of missiles
+LBL SIN
+	HIR 0E0 C'	; DJNZ H0 C', decrement number of missiles
+
+; Error
+LBL DMS 
+	CLR 1/X
+
+; LBL C': Recall last shot display
+LBL C' 
+	( ( HIR 19 	; RCL H9, submarine coming speed (30 knots)
+	* 5 ) 
+	FIX 2 
+	EE 2 + HIR 10	; RCL H0: number of missiles
+	/ 1 0 0 ) 
+	INV EE 
+	RTN 
+
+; LBL A': Display last range.
+LBL A'
+	HIR 11		; RCL H1, last range
+	RTN
+
+; LBL B': Display last bearing.
+LBL B'
+	HIR 12		; RCL H2, last bearing
+	RTN
+
+; Get last bearing difference in radians
+LBL = 
+	HIR 96		; EXC H6, bearing difference in radians
+	RTN 
+
+; LBL E: Start new game. Start value 15000.15 (15000 yards and 15 missiles).
+LBL E 
+	3 0 HIR 09 	; STO H9, submarine coming speed (30 knots)
+
+	( HIR 97 	; EXC H7
+	+ 1 6 HIR 00 	; STO H0, number of missiles
+	X/T 
+	1 6 ) X2 	; = approx. 256
+
+	OP 73		; convert from radians
+	P/R INV P/R 	; normalize angle
+	OP 72		; convert to radians
+
+	HIR 08 		; STO H8, submarine bearing in radians
+
+	. 2 HIR 04 	; STO H4, 0.2
+
+	1 HIR 05 	; STO H5
+	GTO SIN		; Decrement number of missiles and report status
+
+; LBL A: Enter range in yards. 0=not fire missile, only move sub closer.
+LBL A 
+	HIR 01 		; STO H1, range d in yards
+	RTN 
+
+; LBL B: Enter bearing in degrees.
+LBL B 
+	HIR 02 		; STO H2, bearing b in degrees
+	RTN 
+
+; LBL C: Fire missile with given range and bearing. Every turn takes 1 minute.
+LBL C 
+	( 2 * HIR 15 	; RCL H5
+	) 
+	HIR 57		; INV SUM H7
+	0 
+	SBR = 		; Get last bearing difference in radians
+	CP 
+	EQ PI 
+
+	( CE * HIR 15	; RCL H5
+	HIR 37		; SUM H7
+	/ HIR 17 ) 	; RCL H7
+	HIR 38 		; SUM H8, submarine bearing in radians
+LBL PI 
+	HIR 17		; RCL H7
+	LOG
+	CP 
+	INV GE DMS 	; error and display status
+
+	; range = 0, not fire missile, only move submarine
+	HIR 11 		; RCL H1, range d in yards
+	EQ C' 		; LBL C': Recall last shot display
+
+	; range / 500
+	( ( CE 
+	/ 5 0 0 ) 	; range / 500
+
+	* ( CE 
+	+ 1/X 
+	* HIR 17 X2	; RCL H7
+	- 2 
+	* HIR 17	; RCL H7
+	*
+
+	; bearing difference
+	( HIR 18	; RCL H8: submarine bearing in radians
+	- HIR 12	; RCL H2: bearing b in degrees
+	* PI / 1 8 0 ) 	; convert bearing to radians
+	HIR 06 		; STO H6, bearing difference in radians
+	OP 73		; convert from radians
+	COS ) ) 	; cos, get success of shot
+	SQR 		; sqrt
+
+	( ( HIR 09 	; STO H9, submarine coming speed (30 knots)
+	LOG +/- 
+	- 1 ) 
+	CP 
+	GE DMS 		; error and display status
+	+ 1 ) 
+	GE GRD 
+	( CE 
+	+ 1 ) 
+	GE AVR
+
+	; stop submarine
+	0 HIR 09 	; STO H9, submarine coming speed (30 knots)
+LBL AVR 
+	0 
+	SBR = 		; Get last bearing difference in radians
+	GTO SIN 	; Decrement number of missiles
+
+LBL GRD 
+	( HIR 15	; RCL H5
+	- HIR 14 ) 	; RCL H4: 0.2
+	CP 
+	EQ TAN
+	HIR 05		; STO H5
+LBL TAN 
+	1 
+	SBR = 		; Get last bearing difference in radians
+	CP 
+	GE SIN 		; Decrement number of missiles
+	1 +/- 
+	SBR = 		; Get last bearing difference in radians
+	GTO SIN 	; Decrement number of missiles
+
+LBL E'
+	OP 79		; clear registers
+	INV FIX
+	RTN

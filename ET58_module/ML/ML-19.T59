@@ -1,0 +1,364 @@
+; ML-19 Annuities
+; sink  dueFV  ordPV  duePV   INIT
+;  N      %I    PMT   PV/FV  B.PMT
+
+; LBL A: Enter number of periods N, 0=calculate number of periods N
+; LBL B: Enter interest rate I (% per period), 0=calculate interest rate I
+; LBL C: Enter payment/period PMT, 0=calculate payment/period PMT
+; LBL D: Enter value PV or FV, 0=calculate PV or FV
+; LBL E: Enter balloon payment BAL, 0=calculate balloon payment BAL
+; LBL A': Solve sinking fund (amortisation fond)
+; LBL B': Solve annuity due/FV (future rente FV)
+; LBL C': Solve ordinary annuity (present rente/PV)
+; LBL D': Solve annuity due/PV (future rente/PV)
+; LBL E': Initialize
+
+; Registery:
+;  H1 ... number of periods N
+;  H2 ... interest rate I (% per period)
+;  H3 ... present value PV, or payment/period PMT
+;  H4 ... future value FV
+;  H5 ... balloon payment BAL
+;  H6 ...
+;  H8 ... interest rate as decimal number i (i = I * 100)
+;  H9 ... interest rate as decimal number i + 1
+;  H10 .. FV/PV
+;  H11 ... negative number of periods -N
+;  H12 ... (1+i)^N
+;  H14 ... annuity for Sni = ((1+i)^N-1)/i
+
+
+; (LBL B) Calculate interest rate I
+;  - Newton-Raphson method
+LBL 0F0
+	1 HIR 09	; STO H9, interest rate as decimal number i + 1
+	7 +/- INV LOG	; 1e-7
+	X/T 
+	( HIR 14 / 	; RCL H4, future value FV
+	HIR 13 ) 	; RCL H3, present value PV, or payment/period PMT
+	HIR 0A 		; STO H10, FV/PV
+	IFF 3 0F4	; if flag 3: Solve ordinary annuity (present rente/PV)
+	IFF 4 0F4	; if flag 4: Solve annuity due/PV (future rente/PV)
+	( CE / HIR 11	; RCL H1, number of periods N ... (FV/PV/N^2 - PV/FV)
+	X2
+	- HIR 1A 	; RCL H10, FV/PV
+	1/X )
+	HIR 08 		; STO H8, interest rate as decimal number i
+	HIR 39		; SUM H9
+LBL 0F1
+
+;  amortisation fond Sni = ((1+i)^N-1)/i
+	PGM 18 A'	; Solve annuity for Sni = ((1+i)^N-1)/i
+	HIR 0E		; STO H14, annuity for Sni = ((1+i)^N-1)/i
+	IFF 1 0F2 	; if flag 1: Solve sinking fund (amortisation fond)
+	( CE * HIR 19 )	; RCL H9, interest rate as decimal number i + 1
+LBL 0F2
+	( CE - HIR 1A )	; RCL H10, FV/PV
+	HIR 0D 		; STO H13
+	( HIR 1E	; RCL H14, annuity for Sni = ((1+i)^N-1)/i
+	/ HIR 18 	; RCL H8, interest rate as decimal number i
+	- HIR 11 	; RCL H1, number of periods N
+	* HIR 1C 	; RCL H12, (1+i)^N
+	/ HIR 19 	; RCL H9, interest rate as decimal number i + 1
+	/ HIR 18 )	; RCL H8, interest rate as decimal number i
+	IFF 1 0F3	; if flag 1: Solve sinking fund (amortisation fond)
+	( CE * HIR 19	; RCL H9, interest rate as decimal number i + 1
+	- HIR 1E ) 	; RCL H14, annuity for Sni = ((1+i)^N-1)/i
+LBL 0F3
+	HIR 6D		; INV PRD H13 
+	HIR 1D 		; RCL H13
+	HIR 38		; SUM H8 
+	HIR 39		; SUM H9 
+	IXI 		; absolute value
+	GE 0F1		; if x >= eps
+	GTO 0F9
+
+LBL 0F4
+	( HIR 15 	; RCL H5, balloon payment BAL
+	/ HIR 13 	; RCL H3, present value PV, or payment/period PMT
+	+ HIR 0E 	; STO H14, annuity for Sni = ((1+i)^N-1)/i
+	HIR 11 		; RCL H1, number of periods N
+	HIR 4E		; PRD H14, annuity for Sni = ((1+i)^N-1)/i
+	- HIR 1A ) 	; RCL H10, FV/PV
+	HIR 08 ( 	; STO H8, interest rate as decimal number i
+	HIR 11		; RCL H1, number of periods N
+	+ X2 / 2 	; x^2
+	+ HIR 1E 	; RCL H14, annuity for Sni = ((1+i)^N-1)/i
+	/ HIR 11 ) 	; RCL H1, number of periods N
+	IFF 3 0F5 	; if flag 3: Solve ordinary annuity (present rente/PV)
+	( HIR 1B 	; RCL H11, negative number of periods -N
+	+ X2 / 2 	; x^2
+	+ HIR 1E	; RCL H14, annuity for Sni = ((1+i)^N-1)/i
+	) 
+LBL 0F5
+	HIR 68		; INV PRD H8 
+	HIR 18 		; RCL H8, interest rate as decimal number i
+	HIR 39		; SUM H9 
+LBL 0F6
+;  present rente/PV ani = (1-(1+i)^(-N))/i
+	PGM 18 C' 	; Solve annuity for ani = (1-(1+i)^(-N))/i
+	HIR 06 		; STO H6
+	IFF 3 0F7 	; if flag 3: Solve ordinary annuity (present rente/PV)
+	( CE * 
+	HIR 19 ) 	; RCL H9, interest rate as decimal number i + 1
+LBL 0F7
+	( CE + HIR 1E 	; RCL H14, annuity for Sni = ((1+i)^N-1)/i
+	/ HIR 11 	; RCL H1, number of periods N
+	/ HIR 1C 	; RCL H12, (1+i)^N
+	- HIR 1A ) 	; RCL H10, FV/PV
+	HIR 0D 		; STO H13
+	( HIR 16 	; RCL H6
+	/ HIR 18	; RCL H8, interest rate as decimal number i
+	- HIR 11 	; RCL H1, number of periods N
+	/ HIR 1C 	; RCL H12, (1+i)^N
+	/ HIR 19 	; RCL H9, interest rate as decimal number i + 1
+	/ HIR 18 ) 	; RCL H8, interest rate as decimal number i
+	IFF 3 0F8 	; if flag 3: Solve ordinary annuity (present rente/PV)
+	( CE * 
+	HIR 19 + 	; RCL H9, interest rate as decimal number i + 1
+	HIR 16 ) 	; RCL H6
+LBL 0F8
+	( CE + HIR 1E 	; RCL H14, annuity for Sni = ((1+i)^N-1)/i
+	/ HIR 1C 	; RCL H12, (1+i)^N
+	/ HIR 19 ) 	; RCL H9, interest rate as decimal number i + 1
+	HIR 6D		; INV PRD H13 
+	HIR 1D 		; RCL H13
+	HIR 38		; SUM H8 
+	HIR 39		; SUM H9
+	IXI 		; absolute value
+	GE 0F6 		; x >= eps
+LBL 0F9
+	( HIR 18 * 1 0 0 ) ; RCL H8, interest rate as decimal number i
+	CP 		; clear T
+	EQ 0FA		; x = 0
+
+; LBL B: Enter interest rate I (% per period), 0=calculate interest rate I
+LBL B
+	CP 		; clear T
+	EQ 0F0		; x = 0
+
+; (LBL B) Enter interest rate I (% per period)
+LBL 0FA
+	FIX 4 		; rounding 4 decimal places
+	PGM 18 E	; enter interest rate
+	RTN
+
+; (LBL A) Calculate number of periods N
+;  flag 1 (amortisation fond): N = ln(FV*i/PMT+1)/ln(1+i)
+;  flag 2 (future rente FV): N = ln(FV*i/PMT+(1+i))/ln(1+i)-1
+;  flag 3 (present rente/PV): N = ln((PMT-i*BAL)/(PMT-i*PV))/ln(1+i)
+;  flag 4 (future rente/PV): N = ln((PMT*(1+i)/i-BAL)/(PMT*(1+i)/i-PV))/ln(1+i)
+LBL 0FB
+	HIR 13 		; RCL H3, present value PV, or payment/period PMT
+	HIR 0B 		; STO H11, result accumulator <- PV or PMT
+	HIR 0A 		; STO H10, FV or PMT
+	HIR 19 		; RCL H9, interest rate as decimal number i + 1
+	IFF 2 0FC 	; if flag 2: Solve annuity due/FV (future rente FV)
+	IFF 4 0FC 	; if flag 4: Solve annuity due/PV (future rente/PV)
+	1		; 1
+LBL 0FC
+	HIR 4B		; PRD H11, result accumulator
+	HIR 4A		; PRD H10, FV or PMT
+
+	; FV*i
+	( HIR 14 	; RCL H4, future value FV
+	* HIR 18 ) 	; RCL H8, interest rate as decimal number i
+	IFF 1 0FD 	; if flag 1: Solve sinking fund (amortisation fond)
+	IFF 2 0FD 	; if flag 2: Solve annuity due/FV (future rente FV)
+
+	+/- 
+	HIR 3A		; SUM H10, FV or PMT
+
+	; -BAL*i
+	( HIR 15 	; RCL H5, balloon payment BAL
+	* HIR 18 ) 	; RCL H8, interest rate as decimal number i
+	+/- 
+	HIR 3B		; SUM H11, result accumulator
+	GTO 0FE
+
+LBL 0FD
+	HIR 3B		; SUM H11, result accumulator
+LBL 0FE
+	; ln(...)
+	HIR 1B 		; RCL H11, result accumulator
+	LNX 		; logarithm
+	HIR 0B 		; STO H11, result accumulator
+
+	HIR 1A 		; RCL H10, FV or PMT
+	LNX  		; logarithm
+	+/- 
+	HIR 3B		; SUM H11, result accumulator
+
+	; * 1/ln(i+1)
+	HIR 19 		; RCL H9, interest rate as decimal number i + 1
+	LNX  		; logarithm
+	1/X 		; reciprocal
+	HIR 4B		; PRD H11, * result accumulator
+	HIR 1B 		; RCL H11, * result accumulator
+	CP		; clear T
+	EQ 0E0	 	; skip if X = 0
+
+; LBL A: Enter number of periods N, 0=calculate number of periods N
+LBL A
+	CP		; clear T
+	EQ 0FB
+
+; (LBL A) Enter number of periods N
+LBL 0E0
+	HIR 01 		; STO H1, number of periods N
+	+/- 
+	HIR 0B 		; STO H11, negative number of periods -N
+	+/- 
+	INV FIX 	; no rounding
+	RTN
+
+; (LBL C) calculate payment/period PMT
+;  flag 1 (amortisation fond): PMT = FV*i/((1+i)^N-1)
+;  flag 2 (future rente FV): PMT = FV/((1+i)*((1+i)^N-1)/i)
+;  flag 3 (present rente/PV): PMT = (PV-BAL*(1+i)^-N)/((1-(1+i)^-N)/i)
+;  flag 4 (future rente/PV): PMT = (PV-BAL*(1+i)^-N)/((1+i)*(1-(1+i)^-N)/i)
+LBL 0E1
+	IFF 1 0E4 	; if flag 1: Solve sinking fund (amortisation fond)
+	IFF 2 0E3 	; if flag 2: Solve annuity due/FV (future rente FV)
+	IFF 3 0E2 	; if flag 3: Solve ordinary annuity (present rente/PV)
+;  future rente/PV (1+i)ani = ((1+i)-(1+i)^(1-N))/i
+	PGM 18 D' 	; Solve annuity for (1+i)ani
+	GTO 0E5
+
+LBL 0E2
+;  present rente/PV ani = (1-(1+i)^(-N))/i
+	PGM 18 C' 	; Solve annuity for ani = (1-(1+i)^(-N))/i
+	GTO 0E5
+
+LBL 0E3
+;  future rente/FV (1+i)Sni = ((1+i)^(N+1)-(1+i))/i
+	PGM 18 B' 	; Solve annuity for (1+i)Sni
+	GTO 0E5
+
+LBL 0E4
+;  flag 1 (amortisation fond): PMT = FV*i/((1+i)^N-1)
+	PGM 18 A' 	; Solve annuity for Sni = ((1+i)^N-1)/i
+LBL 0E5
+	( CE / 		; Sni
+	( HIR 14 	; RCL H4, future value FV
+	- HIR 15 	; RCL H5, balloon payment BAL
+	/ HIR 1C ) ) 	; RCL H12, (1+i)^N .... FV - BAL/(1+i)^N
+	1/X 
+	CP		; clear T
+	EQ 0E6		; x = 0
+
+; LBL C: Enter payment/period PMT, 0=calculate payment/period PMT
+LBL C
+	CP		; clear T
+	EQ 0E1		; x = 0
+
+; (LBL C) Enter payment/period PMT
+LBL 0E6
+	HIR 03 		; STO H3, present value PV
+	FIX 2 		; fix to 2 decimal places
+	RTN
+
+; (LBL D) calculate value PV or FV
+;  flag 1 (amortisation fond): FV = PMT*((1+i)^N-1)/i
+;  flag 2 (future rente FV): FV = PMT*(1+i)*((1+i)^N-1)/i
+;  flag 3 (present rente/PV): PV = PMT*((1-(1+i)^-N)/i+(BAL*(1+i)^-N)
+;  flag 4 (future rente/PV): PV = PMT*(1+i)*((1-(1+i)^-N)/i+(BAL*(1+i)^-N)
+LBL 0E7
+	IFF 1 0EA 	; if flag 1: Solve sinking fund (amortisation fond)
+	IFF 2 0E9 	; if flag 2: Solve annuity due/FV (future rente FV)
+	IFF 3 0E8 	; if flag 3: Solve ordinary annuity (present rente/PV)
+;  future rente/PV (1+i)ani = ((1+i)-(1+i)^(1-N))/i
+	PGM 18 D'	; Solve annuity for (1+i)ani
+	GTO 0EB
+
+LBL 0E8
+;  present rente/PV ani = (1-(1+i)^(-N))/i
+	PGM 18 C' 	; Solve annuity for ani = (1-(1+i)^(-N))/i
+	GTO 0EB
+
+LBL 0E9
+;  future rente/FV (1+i)Sni = ((1+i)^(N+1)-(1+i))/i
+	PGM 18 B' 	; Solve annuity for (1+i)Sni
+	GTO 0EB
+
+LBL 0EA
+;  amortisation fond Sni = ((1+i)^N-1)/i
+; calculate PV = PMT * (1 - (1+i)^-N)/i + (BAL * (1+i)^-N)
+	PGM 18 A' 	; Solve annuity for Sni = ((1+i)^-N-1)/i
+
+LBL 0EB
+	( CE * HIR 13 	; RCL H3, present value PV, or payment/period PMT
+	+ HIR 15 	; RCL H5, balloon payment BAL
+	/ HIR 1C ) 	; RCL H12, (1+i)^N
+	CP		; clear T
+	EQ 0EC		; x = 0
+
+; LBL D: Enter value PV or FV, 0=calculate PV or FV
+LBL D
+	CP		; clear T
+	EQ 0E7		; x = 0
+LBL 0EC
+; (LBL D) Enter value PV or FV
+	HIR 04		; STO H4, future value FV
+	FIX 2 		; fix to 2 decimal places
+	RTN
+
+; (LBL E) calculate balloon payment BAL
+; BAL = (PV - PMT * (1+i) * (1 - (1+i)^-N)/i ) * (1 + i)^-N
+LBL 0ED
+;  future rente/PV (1+i)ani = ((1+i)-(1+i)^(1-N))/i
+	PGM 18 D' 	; Solve annuity for (1+i)ani
+	IFF 4 0EE 	; if flag 4: Solve annuity due/PV (future rente/PV)
+
+;  present rente/PV ani = (1-(1+i)^(-N))/i
+	PGM 18 C' 	; Solve annuity for ani = (1-(1+i)^(-N))/i
+LBL 0EE
+	( ( CE * 
+	HIR 13 - 	; RCL H3, present value PV, or payment/period PMT
+	HIR 14 ) 	; RCL H4, future value FV
+	+/-
+	* HIR 1C ) 	; RCL H12, (1+i)^N
+	CP		; clear T
+	EQ 0EF		; x = 0
+
+; LBL E: Enter balloon payment BAL, 0=calculate balloon payment BAL
+LBL E
+	CP		; clear T
+	EQ 0ED		; x = 0
+
+; (LBL E) Enter balloon payment BAL
+LBL 0EF
+	HIR 05 		; balloon payment BAL
+	FIX 2 		; fix 2 decimal places
+	RTN
+
+; LBL A': Solve sinking fund
+LBL A' 
+	STF 1 		; set flag 1: Solve sinking fund (amortisation fond)
+	RTN
+
+; LBL B': Solve annuity due/FV
+LBL B' 
+	STF 2 		; set flag 2: Solve annuity due/FV (future rente FV)
+	RTN
+
+; LBL C': Solve ordinary annuity
+LBL C' 
+	STF 3 		; set flag 3: Solve ordinary annuity (present rente/PV)
+	RTN
+
+; LBL D': Solve annuity due/PV
+LBL D' 
+	STF 4 		; set flag 4: Solve annuity due/PV (future rente/PV)
+	RTN
+
+; LBL E': Initialize
+LBL E' 
+	INV STF 1 	; clear flag 1: Solve sinking fund (amortisation fond)
+	INV STF 2 	; clear flag 2: Solve annuity due/FV (future rente FV)
+	INV STF 3 	; clear flag 3: Solve ordinary annuity (present rente/PV)
+	INV STF 4 	; clear flag 4: Solve annuity due/PV (future rente/PV)
+	0 HIR 05 	; STO H5, balloon payment BAL = 0
+	INV FIX 	; no rounding
+	CP		; clear T register
+	RTN

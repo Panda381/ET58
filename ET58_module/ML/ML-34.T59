@@ -1,0 +1,240 @@
+; ML-34 (EE-17) Discrete Fourier Transform
+;
+;  N   n,f(n)  ->DFT  n,F(n)  ->IDFT
+
+; DFT (Discrete Fourier Transform) ... converts real time series 
+;      to the frequency domain, max. 100 points
+; IDFT (Inverse Discrete Fourier Transform) ... converts frequency domain
+;      to real time series, max. 50 point sample
+
+; LBL A: Set number of samples N and clear memory (DFT max. 100, IDFT max. 50)
+; LBL B: Enter entry index n (=0..N-1) and then enter time values f(n) with R/S
+; LBL C: Compute DFT, to continue use R/S
+; LBL D: Enter entry index n (=0..N-1) and then enter frequency values amp(n), phase(n) with R/S
+; LBL E: Compute IDFT, to continue use R/S
+
+; Registers:
+;  H0 ... index or real part re
+;  H1 ... last index or real part re
+;  H2 ... sample index n (=0..N-1)
+;  H3 ... last index of imaginary part im
+;  H4 ... total number of samples N
+;  H5 ... result accumulator re(X) [DFT], f(X) [IDFT]
+;  H6 ... result accumulator im(X) [DFT], f(X) [IDFT]
+;  H7 ... current X (=0..N-1)
+;  H8 ... 2*pi*n*X/N, temporary last entered value
+;  H9 ... index of imaginary part im
+;  H10 ... loop counter of samples
+
+;  R00..R49 ... value f or real part re
+;  R50..R99 ... value f or imaginary part im
+
+
+; LBL E: Compute IDFT, to continue use R/S
+LBL E 
+	INV
+
+; LBL C: Compute DFT, to continue use R/S
+LBL C 
+	STF 0 
+
+	HIR 14		; RCL H4, total number of samples N
+	HIR 0A 		; STO H10, loop counter of samples
+	( CE - 1 )
+	HIR 01 		; STO H1, last index or real part re
+	IFF 00 0FD
+	( CE + 5 0 ) 
+LBL 0FD
+	HIR 03 		; STO H3, last index of imaginary part im
+	0 HIR 07 	; STO H7, current X (=0..N-1)
+LBL 0FC
+	; prepare indices to calculate one sample
+	0 HIR 05 	; STO H5, result accumulator re(X) [DFT], f(X) [IDFT]
+	HIR 06 		; STO H6, result accumulator im(X) [DFT], f(X) [IDFT]
+	HIR 14 		; RCL H4, total number of samples N
+	HIR 02 		; STO H2, sample index n (=0..N-1)
+	HIR 82		; Dec H2, sample index n (=0..N-1)
+	HIR 13 		; RCL H3, last index of imaginary part im
+	HIR 09 		; STO H9, index of imaginary part im
+	HIR 11 		; RCL H1, last index or real part re
+	HIR 00		; STO H0, index or real part re
+LBL 0FB
+	; 2*pi*n*X/N
+	( HIR 12 	; RCL H2, sample index n (=0..N-1)
+	* HIR 17 	; RCL H7, current X (=0..N-1)
+	* 2 * PI 
+	/ HIR 14 ) 	; RCL H4, total number of samples N
+	OP 73		; convert from radians
+	HIR 08 		; STO H8, 2*pi*n*X/N
+
+	; sum Fre(X)
+	( COS 		; cos()
+	* HI* 10 ) 	; RCL Ind H0, * f(n), index or real part re
+	HIR 35 		; SUM H5, result accumulator re(X) [DFT], f(X) [IDFT]
+
+	; sum Fim(X)
+	HIR 18 		; RCL H8, 2*pi*n*X/N
+	( SIN 		; sin()
+	* HI* 19 ) 	; RCL Ind H9, * f(n), index of imaginary part im
+	HIR 56 		; INV SUM H6, result accumulator im(X) [DFT], f(X) [IDFT]
+
+	; shift indices
+	HIR 89		; Dec H9, shift index of imaginary part im
+	HIR 80 		; Dec H0, shift index or real part re
+
+	; loop next sample
+	HIR 0E2 0FB	; DJNZ H2 0FB, decrement sample index n H2 and jump if not zero
+
+	; add last sample f(0)
+	HI* 10		; RCL Ind H0, f(n), index or real part re
+	HIR 35 		; SUM H5, result accumulator re(X) [DFT], f(X) [IDFT]
+
+	; prepare current index
+	HIR 17 		; RCL H7, current X (=0..N-1)
+	HIR 00		; STO H0, current index
+
+	IFF 00 0FA 	; calculate DFT
+
+	; IDFT
+
+	; display prompt
+	7 0 X/T		; text 'f'
+	3 SBR X2	; display prompt 'Result'
+	
+	; IDFT: display time value at n, f(X) = (Fre(X) - Fim(X)) / N
+	( ( HIR 15	; RCL H5, result accumulator re(X) [DFT], f(X) [IDFT]
+	+ HIR 16 ) 	; RCL H6, result accumulator im(X) [DFT], f(X) [IDFT]
+	/ HIR 14 ) 	; RCL H4, total number of samples N
+	RTN		; wait for R/S
+
+	GTO 0F9
+ 
+	; DFT
+LBL 0FA
+
+	; display prompt
+	6 5 7 7 8 0 X/T	; text 'amp'
+	3 SBR X2	; display prompt 'Result'
+
+	; display magnitude of transform
+	HIR 15 		; RCL H5, result accumulator re(X) [DFT], f(X) [IDFT]
+	X/T 
+	HIR 16 		; RCL H6, result accumulator im(X) [DFT], f(X) [IDFT]
+	INV P/R 	; convert to polar coordinates
+	X/T 		; get radius
+	RTN		; wait for R/S
+
+	; display prompt
+	8 0 7 2 6 5 8 3 6 9 X/T	; text 'phase'
+	3 SBR X2	; display prompt 'Result'
+
+	; display phase of transform
+	HIR 15 		; RCL H5, result accumulator re(X) [DFT], f(X) [IDFT]
+	X/T 
+	HIR 16 		; RCL H6, result accumulator im(X) [DFT], f(X) [IDFT]
+	INV P/R 	; convert to polar coordinates
+	RTN		; wait for R/S
+
+LBL 0F9
+	; next sample
+	HIR 77 		; Inc H7, current X (=0..N-1)
+	HIR 0EA 0FC 	; DJNZ H10 0FC, decrement loop counter of samples H10 and jump if not 0
+
+	; stop
+	PGM 03 SBR NOP	; display "Ready"
+	0
+	RTN
+
+; Display prompt, X=text (5=Enter, 3=Result), T=name of value
+;  Called from PGM 41
+LBL X2
+	OP 53 OP 01	; load text " Enter" or "Result" into register 1
+	HIR 10		; RCL H0, entry index
+	X/T
+	OP 54		; add index from T reg.
+	OP 02		; print into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	RTN
+
+; LBL A: Set number of samples N and clear memory (DFT max. 100, IDFT max. 50)
+LBL A
+	CMS 
+	HIR 04 		; STO H4, total number of samples N
+	0
+	RTN
+
+; LBL B: Enter entry index n (=0..N-1) and then enter time values f(n) with R/S
+LBL B 
+	HIR 00		; STO H0, entry index
+	HIR 08		; STO H8, save last entered value
+LBL IXI
+	; display prompt
+	7 0 X/T		; text 'f'
+	5 SBR X2	; display prompt 'Enter'
+
+LBL +/-
+	; display last entered value and stop
+	HIR 18		; RCL H8, restore last entered value
+	RTN		; stop and wait for R/S
+
+	; save entered value
+	HIR 08		; STO H8, save last entered value
+	HI* 00 		; STO Ind H0, store value
+
+	; move to next entry
+	HIR 70		; Inc H0, increase index
+	IF 90 04 IXI	; if H0 < H4 then jump IXI
+
+	PGM 03 SBR NOP	; display "Ready"
+	GTO +/-
+
+; LBL D: Enter entry index n (=0..N-1) and then enter frequency values amp(n), phase(n) with R/S
+LBL D
+	HIR 00		; STO H0, entry index
+	(
+	HIR 08		; STO H8, save last entered value
+	+ 5 0 )
+	HIR 01		; STO H1, entry index 2
+
+LBL SQR
+	; display prompt to enter amplitude
+	6 5 7 7 8 0 X/T	; text 'amp'
+	5 SBR X2	; display prompt 'Enter'
+
+LBL SIN
+	; display last entered value and stop
+	HIR 18		; RCL H8, restore last entered value
+	RTN		; stop and wait for R/S
+
+	; save entered value
+	HIR 08		; STO H8, save last entered value
+	HI* 00 		; STO Ind H0, store value
+
+	; display prompt to enter phase
+	8 0 7 2 6 5 8 3 6 9 X/T	; text 'phase'
+	5 SBR X2	; display prompt 'Enter'
+
+	; display last entered value and stop
+	HIR 18		; RCL H8, restore last entered value
+	RTN		; stop and wait for R/S
+
+	; save entered value
+	HIR 08		; STO H8, save last entered value
+
+	; convert polar coordinates to cartesian
+	X/T HI* 10 X/T	; RCL Ind H0, load radius into T
+	P/R 		; convert polar to cartesian
+
+	; save values
+	HI* 01 		; STO Ind H1, store imaginary part
+	X/T
+	HI* 00		; STO Ind H0, store real part
+
+	; move to next entry
+	HIR 70		; Inc H0, increase index re
+	HIR 71		; Inc H1, increase index im
+	IF 90 04 SQR	; if H0 < H4 then jump SQR
+
+	PGM 03 SBR NOP	; display "Ready"
+	GTO SIN

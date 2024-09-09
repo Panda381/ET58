@@ -1,0 +1,358 @@
+; ML-03, Matrix addition and scalar multiplication (C = lam1*A + lam2*B), matrix multiplication (C = A . B)
+;  j:c      i:xi    -> Ax    i->y
+;  m,n      j:a     j:b      la1,la2   la1*A + la2*B
+
+; LBL A: Enter size of matrix m (rows), n (columns); enter: m A n A
+; LBL B: Enter index of first column of 1st matrix to enter (j = 1..n), and enter data of 1st matrix
+;        - Ordered by entries in one column first, then entries of next column.
+; LBL C: Enter index of first column of 2nd matrix (addition) to enter (j = 1..n), and enter data of 2nd matrix
+;        - Ordered by entries in one column first, then entries of next column.
+; LBL D: Enter lambda 1 and lambda 2 (scalar multipliers of matrices); enter: lam1 D lam2 D
+; LBL E: Process matrix addition, C = lambda1*A + lambda2*B
+; LBL A': Enter index of first column of result matrix to show (j = 1..n), and show data of result
+;         - Ordered by entries in one column first, then entries of next column.
+; LBL B': Enter row index of first entry of column of 2nd matrix (multiplication) to enter (i = 1..n), and enter data of column of 2nd matrix
+; LBL C': Process multiplication of one column of matrix, C = A . B
+; LBL D': Enter row index of first entry of result matrix to show (i = 1..n), and show data of result
+
+; Registers:
+;  H0 - temporary: last entered value
+;  H1 - temporary: indirect index in 1st matrix A, current row i
+;  H2 - temporary: indirect index in 2nd matrix B, current column j
+;  H3 - size of matrix m (number of rows)
+;  H4 - size of matrix n (number of columns)
+;  H5 - lambda 1 (scalar multiplier of 1st matrix A)
+;  H6 - lambda 2 (scalar multiplier of 2nd matrix B)
+;  H7 - temporary: index of current register while entering matrix data, loop counter during matrix addition
+
+;  R10... first register with matrix data (order by columns: a11, a21, ... am1, a12, a22, ... amn)
+
+
+; Matrix addition C = lambda1*A + lambda2*B (matrix A, B, C: m rows x n columns)
+;
+;        ( a11 ... a1n )            ( b11 ... b1n )     ( c11 ... c1n )
+; lam1 * ( ... ... ... )  +  lam2 * ( ... ... ... )  =  ( ... ... ... )
+;        ( am1 ... amn )            ( bm1 ... bmn )     ( cm1 ... cmn )
+
+; cij = lam1*aij + lam2*bij
+
+
+; Matrix multiplication C = A . B
+; - matrix A: m rows x n column
+; - matrix B: n rows x p columns
+; - matrix C: m rows x p columns
+
+;  ( a11 ... a1n )   ( b11 ... b1p )   ( c11 ... c1p )
+;  ( ... ... ... ) . ( ... ... ... ) = ( ... ... ... )
+;  ( am1 ... amn )   ( bn1 ... bnp )   ( cm1 ... cmp )
+;
+; cij = ai1*b1j + ai2*b2j + ... + ain*bnj
+
+
+; display info about one matrix entry (index [H1=row,H2=column])
+;   input: X = index of text message
+LBL STA
+	; display info about matrix element: " ???? [2,3] "
+	OP 53 OP 01	; load text "  ???" into register 1
+	5 9	 	; prepare characters '['
+	X/T HIR 11 X/T	; RCL H1, save current row index i into T
+	OP 54		; add index i to text
+	1 2		; add character ','
+	X/T HIR 12 X/T	; RCL H2, save current column index j into T
+	OP 54		; add index j to text
+	6 1 0 0		; add character ']'
+	OP 02		; save text into register 2
+	GTO GTO
+
+; display "Ready"
+; - called from PGM 07, PGM 10, PGM 32, PGM 34, PGM 38, PGM 41
+LBL NOP
+	OP 00		; clear registers
+	4 7 OP 53 OP 01	; load text "  Ready" into register 1
+LBL GTO
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	RTN
+
+; display info about matrix entry of multiplication (index [H1=row,j])
+;   input: X = index of text message
+LBL RST
+	; display info about matrix element: " ???? [2,j] "
+	OP 53 OP 01	; load text "  ???" into register 1
+	5 9	 	; prepare characters '['
+	X/T HIR 11 X/T	; RCL H1, save current row index i into T
+	OP 54		; add index i to text
+	1 2 7 4 6 1 0 0	; add characters ',j]'
+	OP 02		; save text into register 2
+	GTO GTO		; display text
+
+; LBL A: Enter size of matrix m (rows), n (columns); enter: m A n A
+LBL A
+	; save new dimensions
+	HIR 94		; Exc H4, set number of columns n
+	HIR 03		; STO H3, set number of rows m
+
+	; display current size of matrix: " Matrix 2x3 "
+	X/T		; number of rows m into T
+	1 1 OP 53 OP 01	; load text "  Matrix" into register 1
+	0 OP 54		; add size m to text
+	8 8		; add character 'x'
+	X/T HIR 14 X/T	; RCL H4, number of columns n into T
+	OP 54 0 0 0 0	; add size n to text
+	OP 02		; save text into register 2
+	HIR 14		; RCL H4, restore last entered value
+	GTO GTO		; display text
+
+; LBL * : prepare index of 1st matrix
+;   input: X = column index j (1..n)
+LBL *
+	- 		; column index j minus...
+	1 HIR 01	; STO H1, set row index i = 1
+	=		; subtract j - 1 (convert to column index with base 0)
+	* HIR 13	; RCL H3, column index * number of rows = offset of first register
+	+ 1 0		; add first register R10
+	=		; index of register of this column (starting with register R10)
+	HIR 07		; STO H7, index of current register to enter
+	RTN
+
+; LBL B: Enter index of first column of 1st matrix to enter (j = 1..n), and enter data of 1st matrix
+; - Ordered by entries in one column first, then entries of next column.
+LBL B
+	; prepare index H7 = (j - 1) * m + 10
+	HIR 00		; STO H0, save last entered value
+	HIR 02		; STO H2, save column index j
+LBL X/T
+	SBR *		; prepare index of 1st matrix
+
+LBL IXI		; loop to enter matrix data
+	; display prompt to enter matrix element: " Enter [2,3] "
+	5 SBR STA	; display prompt
+
+LBL +/-
+	; display last entered value and stop
+	HIR 10		; RCL H0, restore last entered value
+	RTN		; stop program and wait for R/S
+
+	; save entered value
+	HIR 00		; STO H0, save last entered value
+	HI* 07		; STO Ind H7, store matrix element into register indexed by H7
+
+	; move to next row
+	IF 91 03 SQR	; IF H1 < H3 jump SQR, if current row i < number of rows m then skip
+	REG 0B1 00	; REG H1 = 0, clear row index
+	HIR 72		; INC H2, increase column index
+
+	; all done
+	IF 0B2 04 SQR	; IF H2 <= H4 jump SQR, if current column j <= number of columns then skip
+	SBR NOP		; display "Ready"
+	GTO +/-
+
+LBL SQR
+	HIR 71		; INC H1, increase row index
+	HIR 77		; INC H7, increase index
+	GTO IXI		; continue loop
+
+; LBL C: Enter index of first column of 2nd matrix (addition) to enter (j = 1..n), and enter data of 2nd matrix
+; - Ordered by entries in one column first, then entries of next column.
+LBL C
+	; prepare index H7 = (j + n - 1) * m + 10
+	HIR 00		; STO H0, save last entered value
+	HIR 02		; STO H2, save column index j
+	+		; column index j plus...
+	HIR 14		; RCL H4, number of columns n
+	GTO X/T		; jump to loop to enter matrix data
+
+; LBL D: Enter lambda 1 and lambda 2 (scalar multipliers of matrices); enter: lam1 D lam2 D
+LBL D
+	; save new lambda
+	HIR 96		; Exc H6, set lambda 2
+	HIR 05		; STO H5, set lambda 1
+
+	; display current lambda: " Lambda 2,3 "
+	X/T		; lambda 1 into T register
+	4 8 OP 53 OP 01	; load text "  Lambda" into register 1
+	0 OP 54		; add lambda 1 to text
+	1 2		; add character ','
+	X/T HIR 16 X/T	; RCL H6, lambda 2
+	OP 54 		; add lambda 2
+	OP 02		; save text into register 2
+	HIR 16		; RCL H6, restore last entered value
+	GTO GTO		; display text
+
+; LBL E: Process matrix addition, C = lambda1*A + lambda2*B
+LBL E
+	HIR 00		; STO H0, save last entered value
+	; prepare pointers
+	1 0 HIR 01	; STO H1, index of entry in first matrix A = 10
+	+ ( HIR 13	; RCL H3, number of rows m
+	* HIR 14 )	; RCL H4, * number of columns n = number of elements per whole matrix
+	HIR 07 		; STO H7, number of elements, loop counter during matrix addition
+	= HIR 02	; STO H2, index of entry in second matrix B = m*n + 10
+LBL X2
+	; calculate one entry of the matrix
+	HIR 15 * 	; RCL H5, lambda1, scalar multiplier of first matrix A
+	HI* 11 		; RCL Ind H1, * element of first matrix A
+	+ HIR 16 *	; RCL H6, lambda2, scalar multiplier of second matrix B
+	HI* 12		; RCL Ind H2, * element of second matrix B
+	= HI* 01	; STO Ind H1, save result into matrix A
+
+	; increase pointers
+	HIR 71		; INC H1, index of element in first matrix A
+	HIR 72		; INC H2, index of element in second matrix B
+
+	; loop counter
+	HIR 0E7 X2	; DJNZ H7, decrement H7 and jump to X2 if > 0
+
+	; all done
+	SBR NOP		; display "Ready"
+	HIR 10		; RCL H0, restore last entered value
+	RTN
+
+
+; LBL A': Enter index of first column of result matrix to show (j = 1..n), and show data of result
+; - Ordered by entries in one column first, then entries of next column.
+LBL A'
+	; prepare index H7 = (j - 1) * m + 10
+	HIR 02		; STO H2, save column index j
+	SBR *		; prepare index of 1st matrix
+
+LBL YX		; loop to show matrix data
+	; display info about matrix element: " Result [2,3] "
+	3 SBR STA	; display info
+
+LBL +
+	HI* 17		; RCL Ind H7, show element with index
+	RTN
+
+	; move to next row
+	IF 91 03 1/X	; IF H1 < H3 jump 1/X, if current row i < number of rows m then skip
+	REG 0B1 00	; REG H1 = 0, clear row index
+	HIR 72		; INC H2, increase column index
+
+	; all done
+	IF 0B2 04 1/X	; IF H2 <= H4 jump 1/X, if current column j <= number of columns then skip
+	SBR NOP		; display "Ready"
+	GTO +
+
+LBL 1/X
+	HIR 71		; INC H1, increase row index
+	HIR 77		; INC H7, increase index
+	GTO YX		; continue loop
+
+
+; LBL B': Enter row index of first entry of column of 2nd matrix (multiplication) to enter (i = 1..n), and enter data of column of 2nd matrix
+LBL B'
+	; prepare index H7 = i - 1 + m*(n+1) + 10
+	HIR 00		; STO H0, save last entered value i
+	HIR 01		; STO H1, save row index i
+	+		; row index i plus...
+	HIR 13 		; RCL H3, number of rows m
+	* ( HIR 14 + 1 ) ; RCL H4, * (number of columns n + 1)
+	+ 9 =	 	; index of register of this column ... = i - 1 + m*(n+1) + 10
+	HIR 07		; STO H7, index of current register to enter
+
+LBL DEG		; loop to enter matrix data
+	; display prompt to enter matrix element: " Enter [2,j] "
+	5 SBR RST	; display info
+
+LBL RAD
+	; display last entered value and stop
+	HIR 10		; RCL H0, restore last entered value
+	RTN		; stop program and wait for R/S
+
+	; save entered value
+	HIR 00		; STO H0, save last entered value
+	HI* 07		; STO Ind H7, store matrix element into register indexed by H7
+
+	; move to next row
+	IF 91 04 GRD	; IF H1 < H4 jump SQR, if current row i < number of colums n then skip
+
+	; all done
+	SBR NOP		; display "Ready"
+	GTO RAD
+
+LBL GRD
+	HIR 71		; INC H1, increase row index
+	HIR 77		; INC H7, increase index
+	GTO DEG		; continue loop
+
+
+; LBL C': Process multiplication of one column of matrix, C = A . B
+LBL C'
+	CLR 1 0		; base register R10
+	- HIR 13	; RCL H3, number of rows m
+	HIR 00		; STO H0, row counter (= number of rows m)
+	= HIR 01	; STO H1, 10 - m, start index of 1st matrix - m
+LBL EE
+	HIR 13 * 	; RCL H3, number of rows m
+	( HIR 14 HIR 07	; RCL H4, STO H7, * number of columns n = loop counter H7 (counts members of one result cell)
+	+ 1 ) + 9 = HIR 02 ; STO H2, m * (n + 1) + 10 - 1 = start index of first element of 2nd matrix
+	CLR		; clear accumulator
+
+; X = accumulator of one result cell
+; H0 = counter of result cells to calculate (= number of rows 'm' at start)
+; H1 = pointer into 1st matrix (starting R10, size m*n)
+;      result column saved at R10+m*n, size m (uses H1 again), located immediately behind 1st matrix
+; H2 = pointer into column of 2nd matrix (starting R10+m*(n+1), size n) - located behind result column
+; H3 - size of matrix m (number of rows)
+; H4 - size of matrix n (number of columns)
+; H7 = counters of columns to calculate sum of one result cell
+
+LBL INT		; loop of compute one element of result matrix
+
+	; increase pointers
+	+ HIR 13	; RCL H3, size of matrix m (number of rows)
+	HIR 31		; SUM H1, increase index of 1st matrix to next column
+	HIR 72		; Inc H2, increase pointer in 2nd matrix
+
+	; add one pair of entries to accumulator
+	HI* 11 		; RCL Ind H1, load element of 1st matrix
+	* HI* 12	; RCL Ind H2, * multiply by element of 2nd matrix
+
+	; counter of entries, loop to next pair
+	HIR 0E7 INT	; DJNZ H7, decrement H7 and jump if > 0 to INT
+
+	; save result
+	= 		; result value of this element
+	HIR 93		; Exc H3, save result, get size of matrix m (number of rows)
+	HIR 31		; SUM H1, H1 increase index of 1st matrix to next column = pointer to result column
+	HIR 93		; EXC H3, get result, return size of matrix m
+; at this place, H1 points after 1st matrix, index R10+m*n, size n
+	HI* 01		; STO Ind H1, save result into result column
+
+	HIR 10 - 1 =	; RCL H0, decrease row counter
+	HIR 01		; STO H1, save new row counter
+	CP		; clear T
+	EQ CLR		; if all rows, stop
+
+	+/- + 1 0 = HIR 91 HIR 00 ; Exc H1, save new index in 1st matrix, H1 = 10 - m + j
+	GTO EE		; go to outer loop
+
+LBL CLR		; return OK
+	RTN
+
+; LBL D': Enter row index of first entry of result matrix to show (j = 1..n), and show data of result
+LBL D'
+	HIR 01		; STO H1, save row index i
+	+ 9		; first element + 10 - 1
+	+ HIR 13 * HIR 14 ; RCL H3, RCL H4, + total number of elements (= m * n)
+	= HIR 07	; STO H7, save index of current register to show = j - 1 + m*n + 10
+
+LBL ENG		; loop to show matrix data
+	; display prompt to enter matrix element: " Result [2,j] "
+	3 SBR RST	; display info
+LBL )
+	HI* 17		; RCL Ind H7, show element with index R07
+	RTN
+
+	; move to next row
+	IF 91 03 (	; IF H1 < H4 jump (, if current row i < number of rows m, skip
+
+	; all done
+	SBR NOP		; display "Ready"
+	GTO )
+
+LBL (
+	HIR 71		; INC H1, increase row index
+	HIR 77		; INC H7, increase index
+	GTO ENG		; continue loop

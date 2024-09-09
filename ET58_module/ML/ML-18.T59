@@ -1,0 +1,153 @@
+; ML-18 Compound Interest
+;  S  (1+i)S   a   (1+i)a  INIT
+;  N    %I     PV   FV
+
+; LBL A: Enter number of periods N, 0=calculate number of periods N
+; LBL B: Enter interest rate I (% per period), 0=calculate interest rate I
+; LBL C: Enter present value PV, 0=calculate present value PV
+; LBL D: Enter future value FV, 0=calculate future value FV
+; LBL A': Solve annuity for amortisation fond Sni
+; LBL B': Solve annuity for future rente/FV (1+i)Sni
+; LBL C': Solve annuity for present rente/PV ani
+; LBL D': Solve annuity for future rente/PV (1+i)ani
+; LBL E': Initialize
+
+; Registers:
+;  H1 ... number of periods N
+;  H2 ... interest rate I (% per period)
+;  H3 ... present value PV, or payment/period PMT
+;  H4 ... future value FV
+;  H5 ... balloon payment BAL
+
+;  H8 ... interest rate as decimal number i (i = I * 100)
+;  H9 ... interest rate as decimal number i + 1
+;  H10 .. FV/PV
+;  H11 ... negative number of periods -N
+;  H12 ... (1+i)^N
+;  H14 ... annuity for Sni = ((1+i)^N-1)/i
+
+; LBL A: Enter number of periods N, 0=calculate number of periods N
+; - called from ML-22
+LBL A
+	CP		; clear T
+	EQ CLR		; 0=calculate
+	HIR 01		; STO H1, number of periods N
+	RTN
+
+; LBL CLR: Calculate number of periods N
+;   FV = PV*(1+i)^N ... N = LN(FV/PV) / LN(i+1)
+LBL CLR
+	( SBR SBR	; calculate FV / PV
+	LNX / 		; lnx (FV/PV)
+	HIR 19 		; RCL H9, interest rate as decimal number + 1
+	LNX )		; convert to base (1+i)
+	HIR 01		; STO H1, number of periods N
+	RTN
+
+; LBL INV: Calculate interest rate
+;  FV = PV*(1+I/100)^N ... I = 100*((FV/PV)^(1/N)-1)
+LBL INV
+	( 1 0 0 
+	- CE * 
+	SBR SBR		; calculate FV / PV
+	INV YX 		; root
+	HIR 11 ) 	; RCL H1, number of periods N
+	+/-
+	CP		; clear T
+	EQ E		; zero result, calculate
+
+; LBL B: Enter interest rate I (% per period)
+; - called from ML-22
+LBL B 
+	CP		; clear T
+	EQ INV		; 0=calculate
+
+; Enter interest rate - here jump from ML-19
+LBL E ; save interest rate I
+	HIR 02		; STO H2, interest rate (% per period)
+	( CE / 1 0 0 	; convert interest rate to decimal number
+	+ HIR 08 	; STO H8, save interest rate as decimal number
+	1 ) 		; + 1
+	HIR 09 		; STO H9, save interest rate as decimal number + 1
+	HIR 12 		; RCL H2, interest rate (% per period)
+	RTN
+
+; LBL C: Enter present value PV, 0=calculate present value
+LBL C
+	CP		; clear T
+	EQ LNX		; 0=calculate
+	HIR 03		; STO 03, present value PV
+	RTN
+
+; LBL LNX: calculate present value PV
+;  FV = PV*(1+i)^N ... PV = FV / (i+1)^N
+LBL LNX
+	( HIR 14 	; RCL H4, future value FV
+	/ HIR 19 	; RCL H9, interest rate as decimal number + 1
+	YX 		; power
+	HIR 11 ) 	; RCL H1, number of periods N
+	HIR 03 		; STO H3, present value PV
+	RTN
+
+; LBL D: Enter future value FV, 0=calculate future value
+LBL D 
+	CP		; clear T
+	EQ CE		; 0=calculate
+	HIR 04		; STO H4, future value FV
+	RTN
+
+; LBL CE: Calculate future value FV
+;  FV = PV * (i+1)^N
+; - called from ML-22
+LBL CE
+	( HIR 13 	; RCL H3, present value PV
+	* HIR 19	; RCL H9, interest rate as decimal number + 1
+	YX 		; power
+	HIR 11 ) 	; RCL H1, number of periods N
+	HIR 04 		; STO H4, future value FV
+	RTN
+
+; LBL A': Solve annuity for amortisation fond Sni
+;  amortisation fond Sni = ((1+i)^N-1)/i
+LBL A' 
+	( ( HIR 19 	; RCL H9, interest rate as decimal number + 1
+	YX 		; power
+	HIR 11 		; RCL H1, number of periods N
+	- HIR 0C	; STO H12 , (1+i)^N
+	1 ) 
+	/ HIR 18 ) 	; RCL H8, interest rate as decimal number
+	RTN
+
+; LBL B': Solve annuity for future rente/FV (1+i)Sni
+;  future rente/FV (1+i)*Sni = ((1+i)^(N+1)-(1+i))/i
+LBL B' 
+	( A' 		; amortisation fond Sni = ((1+i)^N-1)/i
+	* HIR 19 ) 	; RCL H9, interest rate as decimal number + 1
+	RTN
+
+; LBL C': Solve annuity for present rente/PV ani
+;  present rente/PV ani = (1-(1+i)^(-N))/i
+LBL C' 
+	( A' 		; amortisation fond Sni = ((1+i)^N-1)/i
+	/ HIR 1C ) 	; RCL H12, (1+i)^N
+	RTN
+
+; LBL D': Solve annuity for future rente/PV (1+I)ani
+;  future rente/PV (1+i)*ani = ((1+i)-(1+i)^(1-N))/i
+LBL D'
+	C'		; present rente/PV ani = (1-(1+i)^(-N))/i
+	( CE 
+	* HIR 19 ) 	; RCL H9, interest rate as decimal number + 1
+	RTN
+
+; LBL E': Initialize
+LBL E'
+	CP		; clear T register
+	FIX 2		; rounding to 2 decimal points
+	RTN
+
+; LBL SBR: FV / PV
+LBL SBR
+	( HIR 14 	; RCL H4, future value FV
+	/ HIR 13 )	; RCL H3, present value PV
+	RTN

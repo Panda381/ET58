@@ -1,0 +1,255 @@
+11:A   16:A'  1A:A''  /  12:B   17:B'  1B:B''  /  13:C   18:C'  1C:C''  /  14:D   19:D'  1D:D''  /  15:E   10:E'  1E:E''
+
+21:2nd 26:SB* 2A:     /  22:INV 27:HirI 2B:code/  23:lnx 28:log 2C:lg2  /  24:CE  29:CP  2D:rnd  /  25:CLR 20:OFF  2E: .... ON
+-      -      -                 82:HIR
+
+31:LRN 36:Pgm 3A:Temp /  32:x-t 37:P>R 3B:x-y  /  33:x^2 38:sin 3C:snh  /  34:Vx  39:cos 3D:csh  /  35:1/x 30:tan 3E:tah 
+
+41:SST 46:Ins 4A:Bat  /  42:STO 47:CMs,ClrSta 4B:n!/43:RCL 48:Exc 4C:lnn! /  44:SUM 49:Prd 4D:logn!/  45:y^x 40:Ind 4E:mod2
+
+51:BST 56:Del 5A:LCD  /  52:EE  57:Eng 5B:SHL  /  53:(   58:Fix 5C:SHR  /  54:)   59:Int 5D:round/  55: :  50:abs 5E:mod
+
+61:GTO 66:Pau 6A:Rel  /  62:PgI 67:x=t 6B:IncI /  63:ExI 68:Nop 6C:RegI /  64:PrI 69:Op  6D:IfI  /  65:x   60:Deg 6E:AND
+                         07:7          0D:0D      08:8          0E:0E      09:9          0F:0F
+
+71:SBR 76:Lbl 7A:If   /  72:STI 77:x>t 7B:     /  73:RCI 78:Sta 7C:     /  74:SUI 79:Avr 7D:     /  75:-   70:Rad 7E:XOR 
+                         04:4          0A:0A      05:5          0B:0B      06:6          0C:0C
+
+81:RST 86:StF 8A:Reg  /  82:HIR 87:IfF 8B:HEX  /  83:GTI 88:DMS 8C:BIN  /  84:OpI 89:pi  8D:OCT  /  85:+   80:Gra 8E:OR
+                         01:1                     02:2                     03:3
+
+91:R/S 96:Wrt 9A:phi  /  92:RTN 97:Dsz 9B:DEC  /  93:.   98:Adv 9C:Inc  /  94:+/- sgn 99:Prt 9D:NOT  /  95:=   90:Lst 9E:%
+                         00:0
+
+
+Note: The random generator in ML-15 has a different representation due to the different accuracy of the calculation.
+
+Euclidean algorithm: https://cs.wikipedia.org/wiki/Eukleid%C5%AFv_algoritmus
+0x20 is reserved for future fractions a/b
+
+Rel is a relative jump forward (relative to the next address), with INV it is a jump back (the beginning of the INV instruction has offset 3)
+
+If is a conditional jump with register comparison (with INV it changes to 6D If* with indirect 1st and 2nd register)
+    1st parameter (2 digits):
+	1st digit is condition: bit 0 <, bit 1 =, bit 2 >, bit 3 HIR
+	   0..7 memory register comparison, 8..F HIR register comparison
+		0 (8) <=c, comparison with constant = 2. operand, not changed to indirect (do not use FF)
+		1 (9) <
+		2 (A) =
+		3 (B) <=
+		4 (C) >
+		5 (D) <> (not equal)
+		6 (E) >=
+		7 (F) >c, comparison with constant = 2nd operand, does not change to indirect (do not use FF)
+	2nd digit is the number of the first register 0..15 (for 7A If is a direct register, for 6D If* an indirect memory register)
+    2nd parameter (2 digits): number of the second register (for 'c' is a constant, for 7A If is a direct register, for 6D If* an indirect memory register)
+    3rd parameter jump address (absolute, index or label)
+
+Reg (8A Reg nebo 6C Re*) nebo operace s registry (s INV je inverzní operace)
+    1. parametr (2 èíslice; nepouzivat FF):
+	1. èíslice je typ operace (B3=HIR, B2=indirect), 0..3 pamìové registry pøímé, 4..7 nepøímé, 8..B HIR registry pøímé, C..F nepøímé pamìové pøes HIR
+		0, 4, 8, C ... MOV kopie obsahu, s INV je Exc zámìna registrù
+		1, 5, 9, D ... SUM pøiètení, s INV odeètení
+		2, 6, A, E ... Prd vynásobení, s INV vydìlení
+		3, 7, B, F ... Const nastavení registru z konstanty = 2. parametr BCD (nemìní se s indirect), s INV negativní èíslo
+	2. èíslice je cílový operand 0..F, podle operace:
+		0..3 ... pøímý pamìový registr 0..15
+		4..7 ... nepøímý pamìový registr s indexem 0..15
+		8..B ... pøímý registr HIR 0..15
+		C..F ... nepøímý pamìový registr s indexem HIR 0..15
+    2. parametr (2 èíslice, nepouzivat FF) je zdrojový operand (nelze uvést registr 40, kód je rezervován pro nepøímé adresování Ind)
+		8A Reg ... pro operaci 8..F je registr HIR 0..15, jinak pøímý pamìový registr
+		6C Re* ... nepøímý pamìový registr, index pro operaci 8..F je HIR registr, jinak pamìový registr
+
+INV DEC (HEX BIN OCT) - debug mode
+
+INV . - start edit mode of current number (cut hidden digits)
+
+code - zadání kódu instrukce èíselnì z klávesnice 
+
+Ind - samotná klávesa (není-li za jinou klávesou) slouží k vyvolání kódu instrukce z pamìti (kód zadat jako HEX)
+
+INV n! pocita integer factorial
+
+HIR a Print reg jsou samostatné registry, nejsou v callstacku (nemažou se s CLR ani s CMs)
+
+HIR Ind - v HIR registru je index pamìového registru.
+HIR (nepoužívat HIR FF):
+- nižší nibble (v HEX kódu) je èíslo HIR registru 0..15
+- vyšší nibble je povel:
+	0x ... STO, save X into HIR register
+	1x ... RCL, recall X from HIR register
+	2x ... Round, round register to integer
+	3x ... SUM (+), add X to HIR register
+	4x ... Prd (*), multiply X to HIR register
+	5x ... INV SUM (-), subtract X from HIR register
+	6x ... INV Prd (/), divide HIR register by X
+	7x ... Inc (++), increment HIR register
+	8x ... Dec (--), decrement HIR register
+	9x ... Exc, exchange X and HIR register
+	Ax ... GTO to address from HIR register (absolute or label if high byte > 15)
+	Bx ... SBR to address from HIR register (absolute or label if high byte > 15)
+   s Ind adresa nemusí jít zadat pøímo z klávesnice a nemusí být nalezený následující Label správnì
+	Cx a ... x<=0 jump to following address if HIR register is <= 0
+	Dx a ... x>0 jump to following address if HIR register is > 0
+	Ex a ... DJNZ (DSZ), decrement/increment HIR register and jump to address if register is not 0
+	Fx a ... DJZ (INV DSZ), decrement/increment HIR register and jump to address if register is 0
+
+Print registry používají jiný formát! (8 znakù namísto 5, znaky mají jiné kódy)
+
+Op Ind v pamìti je v HEX formátu.
+Op:
+	00 ... clear print registers 1..4
+	01..04 ... set print register 1..4 from register X
+		Register is integer number of 16 digits, defining 8 character.
+		Every 2 digits define 1 character of code 00..99 (see character table)
+	05 ... reserved (output print registers 1..4 to printer)
+	06 ... reserved (output print register 1 to printer with register X)
+	07 ... reserved (print asterisk to X position 0..19 of the printer)
+	08 ... reserved (print labels to the printer)
+	09 ... load selected program to main memory
+
+	0A ... print registers 1 and 2 on 1st row while running (cleared on stop) - full row
+	0B ... print register 1 on 1st row while running (cleared on stop) - half row + number X
+	0C ... print register 1 on 1st row while running (cleared on stop) - quart row + number X
+	0D ... print registers 3 and 4 on 2nd row while running (set to 'C' on stop) - full row
+	0E ... print register 3 on 2nd row while running (set to 'C' on stop) - half row + number X
+	0F ... print register 3 on 2nd row while running (set to 'C' on stop) - quart row + number X
+
+	10 ... sign function of X ... beter use INV |x|
+	11 ... variation
+	12 ... coefficients of linear regression (y = m*x + b, RegT = m, RegX = b)
+	13 ... correlation coefficient
+	14 ... calculate linear regression Y from X (y = m*x + b)
+	15 ... calculate linear regression X from Y (x = (y - b)/m)
+	16,17: get memory organization 999.99 (original: 0x17 sets memory organization)
+	18 ... set flag 7 if no error (or unchanged if error)
+	19 ... set flag 7 if error (or unchanged if no error)
+
+	1A ... print registers 1 and 2 on 1st row while stop - full row
+	1B ... print register 1 on 1st row while stop - half row + number X
+	1C ... print register 1 on 1st row while stop - quart row + number X
+	1D ... set display mode flags + X (default after reset)
+	1E ... set display mode T + X
+	1F ... set display mode text + X (reset to default by CLR - to flags or T)
+
+	2x ... increment memory register x (0..15) ... only for compatibility, better use Inc instruction
+	3x ... decrement memory register x (0..15) ... only for compatibility, better use INV Inc instruction
+
+	40 ... input key from keyboard into reg. X (0..0xFF, keys are remaped by 2nd, 0xff = no key)
+		monitor keys (display pressed key code):
+			Lbl A HEX 0F 0F x<>t Lbl x=t Op 40 x=t x=t Pause GTO x=t
+	41 ... check if key is pressed, reg. X = key code (not remaped, 0xRC R=row 1..9, C=column 1..5), returns 0 or 1 in X if key is pressed
+		monitor key (displays 1 while EE is pressed):
+			Lbl A CP Lbl x=t HEX 5 2 Op 41 x=t x=t Pause GTO x=t
+	42 ... print character to display, X=character code 0..99, T=position:
+			0..15 print on 1st row while running (1st row is cleared on program stop)
+			16..31 print on 2nd row while running (2nd row is set to 'C' on program stop)
+			32..47 print on 1st row while stop (need to activate Op 0x1F text mode, reset to default mode by CLR)
+	43 ... load font with index X (0=default characters, 1=column left, 2=column right, 3=lines, 4=pixels)
+			- pseudo-graphics characters are indexed 91..99
+			- font is restored to default by CLR
+	44 ... delay, X = 0..255 multiply of 10 ms
+	45 ... display progress bar on 1st row if running, from the left, X=0..80
+	46 ... display progress bar on 2nd row if running, from the left, X=0..80
+	47 ... display progress bar on 1st row if stop, on right half from left, with text from print register 1 on left half, X=0..40
+	48 ... display progress bar on 1st row if running, from the right, X=0..80
+	49 ... display progress bar on 2nd row if running, from the right, X=0..80
+	4A ... display progress bar on 1st row if stop, on right half from right, with text from print register 1 on left half, X=0..40
+	4B ... display graph column of value X=0..16 on position T=0..15, while running
+	4C ... display graph column of value X=0..8 on position T=0..7 on 1st row if stop, on right half, with text from register 1 on left half
+	4D ... set pixel on coordinate X=0..15 and T=0..5, while running
+	4E ... reset pixel on coordinate X=0..15 and T=0..5, while running
+	4F ... flip pixel on coordinate X=0..15 and T=0..5, while running
+	50 ... find greatest common divisor of two non-zero integer numbers X and T, result into X (Euclidean algorithm)
+	51 ... get seed of random generator (into X, number 0..4294967295)
+	52 ... set seed of random generator (from X, number 0..4294967295)
+	53 ... load predefined text with index X into X, in editable form (add 00 to shift to the left) (0=OK, 1=ERROR,...)
+		  Decimal places x.N = shift text by N positions to the left.
+	54 ... add text of integer number from T to end of X
+
+   Op 55 .. Op 6F: complex numbers and fraction numbers a/b
+	- complex/fraction numbers are stored in the stack in memory registers (stack can be defined)
+	- reg T = real part (or numerator 'a'), reg X = imaginary part (or denominator 'b')
+	- polar number: reg T = modulus, reg X = angle in radiands
+	- for operations: first entered number (pre-top) is X, last entered (top) is Y
+	- To view complex/fraction number, set Op 1E (1st row = reg. T = real part or numerator 'a',
+             2nd row = reg. X = imaginary part or denominator 'b')
+	- To convert complex number to polar coordinates, use R->P (X angle, T radius), P->R back
+
+	55 ... initialize stack of complex/fraction numbers: reg X = number of complex/fraction numbers,
+               reg T = first memory register (number of memory registers = number of complex/fraction numbers * 2)
+               Default: 10 complex/fraction numbers in registers R10..R29
+	56 ... get number of complex/fraction numbers in the stack
+	57 ... store complex/fraction number to the stack: reg T = real part (or numerator 'a'),
+               reg X = imaginary part (or denominator 'b')
+	58 ... load top complex/fraction number from the stack to the X+T, but does not delete it from the stack
+	59 ... delete top complex/fraction number from the stack
+	5A ... exchange last two complex/fraction numbers on the stack X<->Y
+	5B ... duplicate top complex/fraction number on the stack
+
+   following operations are only for complex numbers (not for fraction numbers):
+	5C ... add complex numbers X + Y (delete Y)
+	5D ... subtract complex numbers X - Y (delete Y)
+	5E ... multiply complex numbers X * Y (delete Y)
+	5F ... divide complex numbers X / Y (delete Y)
+	60 ... power complex numbers X ^ Y (delete Y)
+	61 ... power root complex numbers X ^ 1/Y (delete Y)
+	62 ... logarithm X with base Y log_Y(X) (delete Y)
+	63 ... square of complex number X^2
+	64 ... square root of complex number VX
+	65 ... reciprocal value of complex number 1/X
+	66 ... exponent of complex number e^X
+	67 ... logarithm of complex number ln(X)
+	68 ... sinus of complex number sin(X)
+	69 ... cosinus of complex number cos(X)
+	6A ... tangent of complex number tan(X)
+	6B ... arcus sinus of complex number asin(X)
+	6C ... arcus cosinus of complex number acos(X)
+	6D ... arcus tangent of complex number atan(X)
+	6E ... convert complex number to polar number
+	6F ... convert polar number to complex number
+
+	70 ... search zero cross of user function A' (X=start x, T=end x, returns X new cross, or error)
+	71 ... Simpson's integral of user function A' (HIR H1=lower limit x0, HIR H2=upper limit xn, HIR H3=number of steps n)
+	72 ... convert angle from current unit into radians
+	73 ... convert angle from radians into current unit
+	74 ... standard normal distribution - probability density Z(x) ... range x = -150..+150
+	75 ... complementary Gaussian distribution function - upper cumulative Q(x) (CGD, Q-function) ... range x = -8..+8
+	76 ... cumulative normal distribution function - lower cumulative P(x) (CND, CDF) ... range x = -8..+8
+	77 ... max - compare X and T and set X to greater value
+	78 ... min - compare X and T and set X to lower value
+	79 ... clear all HIR registers
+
+   Op 7A .. Op 7F: fraction numbers a/b (and Op 55..5B, too)
+	- reg. T = numerator 'a' (number above a line), reg. X = denominator 'b' (number below a line)
+	7A ... convert decimal number in X to fraction number in T/X (a/b)
+	7B ... convert fraction number in T/X (a/b) to decimal number in X
+	7C ... add fraction numbers X + Y (delete Y)
+	7D ... subtract fraction numbers X - Y (delete Y)
+	7E ... multiply fraction numbers X * Y (delete Y)
+	7F ... divide fraction numbers X / Y (delete Y)
+
+	80 ... short delay 10 msec (0.01 sec)
+	81 ... short delay 100 msec (0.1 sec)
+	82 ... cut hidden digits (similar to EE INV EE)
+	83 ... start measure time
+	84 ... get elapsed time (granularity 0.01 sec, max. 655 seconds = 10.9 minutes)
+	85 ... get number of data registers (= max. register + 1)
+	86 ... get state of all user flags as 16-bit number (range 0..65535)
+	87 ... get CRC (16-bit word XModem) of program ROM (returns X = calculated CRC, T = expected CRC)
+
+	88 ... set power off time in seconds (min 5 seconds, max. 650 seconds = almost 11 minutes, 0 = off)
+	89 ... get power off time in seconds
+	8A ... display calculator firmware version
+	8B ... do calculator reset (clears RAM: data registers and base initialize)
+
+Deviations:
+- Accuracy (coincidence generator varies)
+- DSZ rounds the result to a whole number
+- = repeats the last calculation
+- may not pass equality test after multiple operations (binary number may differ slightly, this is automatically corrected for BCD),
+   treats with rounding or interval testing
+- flag 15 is access to the error flag (display flashing)
+
+Mars Landing: 9x52 43 15 (smooth -3.9)

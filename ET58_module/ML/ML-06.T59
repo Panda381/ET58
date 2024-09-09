@@ -1,0 +1,76 @@
+; ML-06 Complex Trig Functions
+;    INIT   asin X  acos X  atan X ABS
+;    ENTER  sin X   cos X   tan X  NEG
+
+; LBL A: enter number into stack (to use: enter real part, press X/T, enter imaginary part, press A)
+; LBL A': initialize stack to memory registers R10..R29
+; LBL B: sin X
+; LBL B': asin X
+; LBL C: cos X
+; LBL C': acos X
+; LBL D: tan X
+; LBL D': atan X
+; LBL E: neg X
+; LBL E': abs X
+
+; Registers:
+;  R10..R29 stack of 10 complex numbers
+
+; LBL A: Enter number into the stack (enter real part, press X/T, enter imaginary part, press A)
+LBL A
+	OP 57	; store number to the stack
+	RTN
+
+; LBL A': Initialize stack of complex numbers
+LBL A'
+	PGM 04 A'
+	RTN
+
+; LBL B: sin X
+LBL B
+	OP 68	; sin
+LBL =
+	OP 58	; load result
+	RTN
+
+; LBL B': asin X
+LBL B'
+	OP 6B	; asin
+	GTO =
+
+; LBL C: cos X
+LBL C
+	OP 69	; cos
+	GTO =
+
+; LBL C': acos X
+LBL C'
+	OP 6C	; acos
+	GTO =
+
+; LBL D: tan X
+LBL D
+	OP 6A	; tan
+	GTO =
+
+; LBL D': atan X
+LBL D'
+	OP 6D	; atan
+	GTO =
+
+; LBL E: negate
+LBL E
+	OP 58	; load number
+	OP 59	; delete number
+	+/- X/T +/- X/T ; negate
+	OP 57	; store new number
+	RTN
+
+; LBL E': absolute value
+LBL E'
+	OP 6E	; convert to polar
+	OP 58	; load number	
+	OP 59	; delete number
+	0	; clear angle
+	OP 57	; store new number
+	RTN

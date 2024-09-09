@@ -1,0 +1,33 @@
+
+Print characters to display (= ASCII code - 32)
+
+00 spc	16 0	32 @	48 P	64 '	80 p 	96 square root
+01 !    17 1    33 A    49 Q    65 a    81 q    97 micro      
+02 "    18 2    34 B    50 R    66 b    82 r    98 omega      
+03 #    19 3    35 C    51 S    67 c    83 s    99 full box   
+04 $    20 4    36 D    52 T    68 d    84 t 
+05 %    21 5    37 E    53 U    69 e    85 u 
+06 &    22 6    38 F    54 V    70 f    86 v 
+07 '    23 7    39 G    55 W    71 g    87 w 
+08 (    24 8    40 H    56 X    72 h    88 x 
+09 )    25 9    41 I    57 Y    73 i    89 y 
+10 *    26 :    42 J    58 Z    74 j    90 z 
+11 +    27 ;    43 K    59 [    75 k    91 { 
+12 ,    28 <    44 L    60 \    76 l    92 | 
+13 -    29 =    45 M    61 ]    77 m    93 } 
+14 .    30 >    46 N    62 ^    78 n    94 ~ 
+15 /    31 ?    47 O    63 _    79 o    95 pi
+
+
+C  a  l  c  u  l  a  t       e     f  i  l  t  e  r
+35 65 76 67 85 76 65 84 Op01 69 00 70 73 76 84 69 82 Op02 Op40
+
+W  o  r  k  i  n  g  :
+55 79 82 75 73 78 71 26 Op01
+
+
+Op4E spectrum on 2 rows, X = 16 digits with calue 0..F
+Op4F pixelov graphics, X = 16 digits with 4 bits
+
+
+complex number online calculator: https://www.mathsisfun.com/numbers/complex-number-calculator.html

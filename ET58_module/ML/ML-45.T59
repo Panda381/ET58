@@ -1,0 +1,116 @@
+; ML-45 (LE-12) Acey-Deucy Game
+;         ?Num3  ?Bank
+;  Start   Num1   Num2   Odds  Bet
+
+; LBL A: Start new game with bankroll 1000
+; LBL B: Generate first random number Num1 1..1000
+; LBL C: Generate second random number Num2 1..1000 (Num2 >= Num1)
+; LBL D: Calculate odds (multiply of bet)
+; LBL E: Enter bet
+; LBL B': Display 3rd number Num3 1..1000
+; LBL C': Display bankroll
+
+; Registers:
+;  H1 ... Bankroll
+;  H2 ... 1st number
+;  H3 ... 2nd number
+;  H4 ... 3rd number
+;  H5 ... odds
+;  H6 ... bet
+
+; generate number 1..1000
+LBL RND
+	( RND * 1 0 0 0 + 1 )
+	INT
+	RTN
+
+; LBL A: Start new game
+LBL A 
+	CLR
+	1 0 0 0		; start bankroll
+	HIR 01 		; STO H1, Bankroll
+	RTN 
+
+; LBL B: Generate first random number
+LBL B 
+	; generate 1st number
+	SBR RND		; random number 1..1000
+	HIR 02		; STO H2, 1st number
+
+	; generate 2nd number
+	SBR RND		; random number 1..1000
+	HIR 03 		; STO H3, 2nd number
+
+	; sort numbers
+	IF 0B2 03 RCL	; IF H2 <= H3 then jump RCL
+	INV REG 82 03	; Exc H2 H3, exchange registers
+LBL RCL 
+	HIR 12		; RCL H2, 1st number
+	RTN 
+
+; LBL C: Generate second random number
+LBL C 
+	HIR 13		; RCL H3, 2nd number
+	RTN 
+
+; LBL D: Calculate odds
+LBL D
+	; difference
+	( HIR 13 	; RCL H3, 2nd number
+	- HIR 12 	; RCL H2, 1st number
+	- 1 0 0 ) 
+
+	; limit interval overflow (< 100)
+	CP 
+	GE PI 
+	1 0 		; limit to 10
+	GTO AVR 
+LBL PI 
+	; calculate odds = 1/delta - 1
+	( ( ( CE 
+	+ 1 0 0 ) / 1 0 0 0 )
+	1/X 
+	- 1 ) 
+LBL AVR 
+	( HIR 05	; STO H5, odds
+	* 1 0 0 )
+	( ROU / 1 0 0 )
+	RTN 
+
+; LBL E: Enter bet
+LBL E 
+	HIR 06 		; STO H6, bet
+
+	; generate 3rd random number	
+	SBR RND		; generate random number
+	HIR 04		; STO H4, 3rd number
+
+	; loss, subtract bet from bankroll
+	HIR 16 +/-	; RCL H6, -bet
+
+	; check if 3rd number is >= 1st number
+	IF 94 02 ADV	; IF H4 < H2 then jump ADV, loss
+
+	; check if 2nd number is >= 3rd number
+	IF 0C4 03 ADV	; IF H4 > H3 then jump ADV, loss
+
+	; calculate win
+	( HIR 15 	; RCL H5, odds
+	* HIR 16 ) 	; RCL H6, * bet
+LBL ADV 
+	( CE * 1 0 0 )
+	( ROU / 1 0 0 )
+
+	; add/sub bankroll
+	HIR 31 		; SUM H1, add Bankroll
+	RTN 
+
+; LBL B': Display 3rd number
+LBL B'
+	HIR 14 		; RCL H4, get 3rd number
+	RTN 
+
+; LBL C': Display bankroll
+LBL C' 
+	HIR 11 		; RCL H1, get Bankroll
+	RTN 

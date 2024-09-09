@@ -1,0 +1,169 @@
+; ML-16 Variations, Permutations, Combinations, Factorial
+; big x! log x! sup x! hyp x! CLR
+;   x!   ln x!  V rep  P rep C rep
+;   n      r     V      P     C
+
+; Permutation = Variation of all elements (r = n)
+
+; LBL A: enter max. value n
+; LBL B: enter number of cases r (not needed with permutation)
+; LBL C: calculate variation (=order is important)
+;        of max. n values on r cases, no repetition
+; LBL D: calculate permutation (=order is important)
+;        of n values, no repetition
+; LBL E: calculate combination (=order is not important)
+;        of max. n values on r cases, no repetition
+; LBL A': calculate factorial x!
+; LBL B': calculate ln factorial x!
+; LBL C': calculate variation (=order is important)
+;         of max. n values on r cases, with repetition
+; LBL D': calculate permutation (=order is important)
+;        of n values, with repetition
+; LBL E': calculate combination (=order is not important)
+;         of max. n values on r cases, with repetition
+; LBL A'': big factorial, reg. T = mantissa, reg. X = exponent
+; LBL B'': calculate log10 factorial x!
+; LBL C'': super factorial, integer (n$ = n! * (n-1)! * ...), reg. T = mantissa, reg. X = exponent
+; LBL D'': hyper factorial, integer (H(n) = n^n * (n-1)^(n-1) * ...), reg. T = mantissa, reg. X = exponent
+; LBL E'': reset display to normal mode after A''..D''
+
+; Reset display to normal mode: OP 1D
+
+; Registers:
+;  H1 ... max. value n
+;  H2 ... number of cases r
+;  H3 ... loop counter
+
+; LBL A: enter max. value n
+LBL A
+	HIR 01		; STO H1, max. value n
+	RTN
+
+; LBL B: enter number of cases r
+LBL B
+	HIR 02		; STO H2, number of cases r
+	RTN
+
+; LBL C: calculate variation (=order is important)
+;   of max. n values on r cases, no repetition
+;   y = n! / (n - r)!
+LBL C
+	( HIR 11	; RCL H1, max. value n
+	LN!		; ln n!
+	- (
+	HIR 11		; RCL H1, max. value n
+	- HIR 12 )	; RCL H2, number of cases r
+	LN! )		; ln n!
+	INV LNX		; exp
+	ROU		; round
+	RTN
+
+; LBL D: calculate permutation (=order is important)
+;        of n values, no repetition
+;   y = n!
+LBL D
+	HIR 11		; RCL H1, max. value n
+	N!		; n!
+	RTN
+
+; LBL E: calculate combination (=order is not important)
+;   of max. n values on r cases, no repetition
+;   y = n! / (n - r)! / r!
+LBL E
+	( HIR 11	; RCL H1, max. value n
+	LN!		; ln n!
+	- (
+	HIR 11		; RCL H1, max. value n
+	- HIR 12 )	; RCL H2, number of cases r
+	LN! - 		; ln n!
+	HIR 12 LN! )	; RCL H2, number of cases r
+	INV LNX		; exp
+	ROU		; round
+	RTN
+
+; LBL A': calculate factorial x!
+LBL A'
+	N!		; n!
+	RTN	
+
+; LBL B': calculate ln factorial x!
+LBL B'
+	LN!		; ln n!
+	RTN
+
+; LBL C': calculate variation (=order is important)
+;   of max. n values on r cases, with repetition
+;    y = n^r
+LBL C'
+	( HIR 11	; RCL H1, max. value n
+	YX HIR 12 )	; RCL H2, number of cases r
+	ROU		; round
+	RTN
+
+; LBL D': calculate permutation (=order is important)
+;        of n values, with repetition
+;    y = n^n
+LBL D'
+	( HIR 11	; RCL H1, max. value n
+	YX HIR 11 )	; RCL H1, max. value n
+	ROU		; round
+	RTN
+
+; LBL E': calculate combination (=order is not important)
+;   of max. n values on r cases, with repetition
+;   y = (r + n - 1)! / (n - 1)! / r!
+LBL E'
+	( ( HIR 12	; RCL H2, number of cases r
+	+ HIR 11 - 1 )	; RCL H1, max. value n
+	LN!		; ln n!
+	- ( HIR 11 - 1 ) ; RCL H1, max. value n
+	LN!		; ln n!
+	- HIR 12 LN! )	; RCL H2, number of cases r
+	INV LNX		; exp
+	ROU		; round
+	RTN
+
+; LBL A'': big factorial, reg. T = mantissa, reg. X = exponent
+LBL A''
+	LG!		; log n!
+LBL LG!
+	( CE + 
+	INV INT INV LOG X/T ; mantissa
+	0 ) INT		; exponent
+	OP 1E		; set display mode format X + T
+	RTN
+
+; LBL B'': calculate log10 factorial n!
+LBL B''
+	LG!		; log n!
+	RTN
+
+; LBL C'': super factorial, integer (n$ = n! * (n-1)! * ...), reg. T = mantissa, reg. X = exponent
+LBL C''
+	ROU		; round to integer
+	HIR 03		; STO H3, store loop counter
+	0
+LBL LN!
+	( CE +
+	HIR 13		; RCL H3, loop counter
+	LG! )		; add log n!
+	HIR 0E3 LN!	; DJNZ H3 LN!, decrement H3 and loop
+	GTO LG!		; display result
+
+; LBL D'': hyper factorial, integer (H(n) = n^n * (n-1)^(n-1) * ...), reg. T = mantissa, reg. X = exponent
+LBL D''
+	ROU		; round to integer
+	HIR 03		; STO H3, store loop counter
+	0
+LBL N!
+	( CE +
+	HIR 13		; RCL H3, loop counter
+	CE * LOG )	; add n^n
+	HIR 0E3 N!	; DJNZ H3 N!, decrement H3 and loop
+	GTO LG!		; display result
+
+; LBL E'': reset display to normal mode after A''..D''
+LBL E''
+	CLR		; clear display
+	OP 1D		; set normal display mode
+	RTN

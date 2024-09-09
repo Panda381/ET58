@@ -1,0 +1,49 @@
+; ML-09 Simpson's Integral Approximation (Continous Function)
+;  f(x)
+;  x0    xn   n   ->I  GRAPH
+
+; To use, first create function in main program, with label A'.
+
+; LBL A: enter lower limit x0
+; LBL B: enter upper limit xn
+; LBL C: enter number of steps (should be even number)
+; LBL D: calculate integral
+; LBL E: draw graph
+; LBL A': Get value of function at X
+
+; Registers:
+;  H1 ... lower limit x0
+;  H2 ... upper limit xn
+;  H3 ... number of steps
+
+; LBL A: enter lower limit x0
+LBL A
+	HIR 01	; STO H1, save lower limit x0
+	RTN
+
+; LBL A': Get value of function at X
+LBL A' 
+	PGM 00 A' 
+	RTN 
+
+; LBL B: enter upper limit xn
+LBL B
+	HIR 02	; STO H2, save upper limit xn
+	RTN
+
+; LBL C: enter number of steps (should be even number)
+LBL C
+	HIR 03
+	RTN
+
+; LBL D: calculate integral
+LBL D
+	OP 71		; calculate integral
+	RTN
+
+; LBL E: draw graph of user function A'
+LBL E
+	HIR 12		; RCL H2, upper limit
+	X/T
+	HIR 11		; RCL H1, lower limit
+	PGM 08 E

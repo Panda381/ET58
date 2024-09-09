@@ -1,0 +1,146 @@
+; ML-37 (AV-23) Time Zone Conversions
+;                         ->date'
+; zone   date  time  dt   ->time'
+
+; LBL A: Enter zone number (west -, east +)
+; LBL B: Enter date in form MM.DD
+; LBL C: Enter time in form HH.MMSS
+; LBL D: Enter time increment dt in form HH.MMSS
+; LBL E: Get new time in form HH.MMSS
+; LBL E': Get new date in form MM.DD
+
+; Registers:
+;  H1 ... temporary counter
+;  H2 ... time in decimal form HH.dddd
+;  H3 ... day DD
+;  H4 ... month MM
+;  H5 ... time zone
+
+; get number of days at current month
+LBL =
+	HIR 14		; RCL H4, month MM	
+	HIR 01		; STO H1, temporary counter
+			; DJZ H1..., decrement H1 and jump if H1 = 0
+	HIR 0F1 0E1	; 1: 31
+	HIR 0F1 0E8	; 2: 28
+	HIR 0F1 0E1	; 3: 31
+	HIR 0F1 0E0	; 4: 30
+	HIR 0F1 0E1	; 5: 31
+	HIR 0F1 0E0	; 6: 30
+	HIR 0F1 0E1	; 7: 31
+	HIR 0F1 0E1	; 8: 31
+	HIR 0F1 0E0	; 9: 30
+	HIR 0F1 0E1	; 10: 31
+	HIR 0F1 0E0	; 11: 30
+			; 12: 31
+LBL 0E1
+	3 1
+	RTN
+LBL 0E0
+	3 0
+	RTN
+LBL 0E8
+	2 8
+	RTN
+
+
+; round number down
+LBL B' 
+	( CE - . 5 )
+	ROU
+	RTN
+
+; correction of month underflow/overflow
+LBL C' 
+	( HIR 14 	; RCL H4, month MM
+	CP 		; clear reg. T
+	EQ 0FE		; check if month = 0
+	- 1 3 ) 	; check month overflow
+	EQ 0FD		; month overlfow
+	RTN
+LBL 0FE ; month underflow
+	) 1 1  		; month correction back to 12
+LBL 0FD ; month overflow
+	HIR 04 		; STO H4, month MM
+	HIR 74		; Inc H4, month MM
+	RTN
+
+; LBL A: Enter zone number (west -, east +)
+LBL A 
+	( CE - HIR 95 ) ; Exc H5, subtract previous time zone
+	HIR 32 		; SUM H2, time in decimal form HH.dddd
+	HIR 15		; RCL H5
+	RTN
+
+; LBL B: Enter date in form MM.DD
+LBL B 
+	HIR 03 		; STO H3, day DD
+	B' 		; round number down
+	HIR 53 		; INV SUM H3, day DD
+	HIR 04 		; STO H4, month MM
+	1 0 0 
+	HIR 43 		; Prd H3, day DD (convert decimal .DD to integer DD)
+
+; LBL E': Get new date in form MM.DD
+LBL E'
+	( HIR 13	; RCL H3, day DD
+	/ 1 0 0 + 	; day / 100
+	HIR 14 )	; RCL H4, month MM
+	RTN
+
+; LBL C: Enter time t in form HH.MMSS
+LBL C 
+	DMS 		; convert time to decimal
+	HIR 02		; STO H2, time in decimal form HH.dddd
+	INV DMS
+	RTN
+
+; LBL D: Enter time increment dt in form HH.MMSS
+LBL D 
+	DMS 		; convert time to decimal
+	HIR 32 		; SUM H2, time in decimal form HH.dddd
+	INV DMS
+	RTN
+
+; LBL E: Get new time in form HH.MMSS
+LBL E 
+	; carry hours to days
+	( HIR 12 	; RCL H2, time in decimal form HH.dddd
+	/ 2 4 )		; / 24 = convert to days
+	B' 		; round number down
+	( HIR 33	; SUM H3, add to day DD
+	* 2 4 ) 	; * 24 = convert back to hours
+	HIR 52 		; INV SUM H2, time in decimal form HH.dddd
+
+	; check day underflow, check if day < 1
+	( HIR 13 	; RCL H3, day DD
+	- 1 ) 		; underflow?
+	CP 		; clear reg. T
+	GE 0FC		; day is OK
+
+	; underflow correction: decrease month
+	HIR 84 		; Dec H4, decrease month MM
+	C' 		; correction of month underflow/overflow
+
+	; get new number of days
+	SBR =		; get number of days at current month
+	HIR 33 		; SUM H3, day DD correction, set new last day
+	GTO 0FB
+
+LBL 0FC
+	; check day overflow
+	( 
+	SBR =		; get number of days at current month
+	- HIR 13 ) 	; RCL H3, day DD, get overflow days
+	GE 0FB		; no overflow
+
+	; day overflow correction
+	+/- 
+	HIR 03 		; STO H3, new day DD
+	HIR 74 		; Inc H4, increase month MM
+	C' 		; correction of month underflow/overflow
+
+LBL 0FB
+	HIR 12 		; RCL H2, time in decimal form HH.dddd
+	INV DMS 	; convert time to form HH.MMSS
+	RTN

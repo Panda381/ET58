@@ -1,0 +1,91 @@
+; ML-21 HI-LO Game
+;  M INIT    M LO    M HI    M CORR
+;  START    GUESS   SCORE
+
+; LBL A: start new game
+; LBL B: gues number (input 1..1023)
+; LBL C: get number of tries
+; LBL A': start computer guess
+; LBL B': computer guess - low
+; LBL C': computer guess - high
+; LBL D': computer guess - correct
+
+; Registers:
+;  H2 ... computer guess power of increment
+;  H3 ... generater number to guess
+;  H4 ... try counter
+;  H5 ... difference
+
+; LBL NOP: display text "Game Ready"
+LBL NOP
+	6 4 OP 53 OP 01	; load text "  Game" into register 1
+	4 7 OP 53 0 0 0 0 OP 02 ; load text "  Ready" into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	RTN
+
+; LBL A: start new game
+LBL A 
+	( RND		; random number in range 0..1
+	* 1 0 2 3 + 1 ) ; rnd * 1023 + 1
+	INT 		; integer, number will be in range 1..1023
+	HIR 03 		; STO H3, generated number
+	SBR NOP		; display text "Game Ready"
+	0 HIR 04 	; STO H4, clear try counter
+	RTN
+
+; LBL B: gues number (input 1..1023)
+LBL B
+	HIR 74		; Inc H4, increase number of tries
+	( CE		; X
+	- HIR 13 ) 	; RCL H3, X - guess, get difference
+	INV IXI		; sign of result
+	CP		; clear T
+	INV EQ IXI	; if not 0, skip
+	1/X		; 1/X, flash to indicate correct
+	0		; result 0
+LBL IXI
+	HIR 05 		; STO H5, save result
+
+	; display result
+	(
+	OP 00		; clear registers
+	+ 6 2 )
+	OP 53 OP 01	; load result text "Too Low / Correct / Too High" into register 1
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+
+	HIR 15		; RCL H5, return result
+	RTN
+
+; LBL C: get number of tries
+LBL C 
+	CLR		; clear error flash and clear text
+	HIR 14 		; RCL H4, get number of tries
+	RTN
+
+; LBL A': start computer guess
+LBL A' 
+	CLR		; clear error flash and clear text
+	9 HIR 02 	; STO H2, computer guess power of increment (2^9 = 512)
+	5 1 2 		; initialize guess = 512
+	RTN
+
+; LBL C': computer guess - high
+LBL C' 
+	+/- 
+
+; LBL B': computer guess - low
+LBL B' 
+	X/T 		; save current value into T
+	HIR 82		; Dec H2, decrease power of increment
+	( 2 YX HIR 12 	; RCL H2, calculate increment size
+	+ X/T ) 	; shift guess
+	IXI 		; absolute value
+	RTN
+
+; LBL D': computer guess - correct
+LBL D' 
+	( 1 0 		; 10 = max. tries + 1
+	- HIR 12 ) 	; RCL H2, get number of tries
+	RTN

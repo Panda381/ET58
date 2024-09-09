@@ -1,0 +1,240 @@
+; ML-43 Checksum
+;  CCITT  CCITTB   Dallas   XOR     INIT
+;  CRC32   IBM     Modbus  Kermit  XModem
+
+; LBL A: Enter byte in HEX mode (00..FF) and calculate next CRC32 (32-bit) value.
+; LBL B: Enter byte in HEX mode (00..FF) and calculate next CRC-IBM (16-bit) value.
+; LBL C: Enter byte in HEX mode (00..FF) and calculate next CRC-Modbus (16-bit) value.
+; LBL D: Enter byte in HEX mode (00..FF) and calculate next CRC-Kermit (16-bit) value.
+; LBL E: Enter byte in HEX mode (00..FF) and calculate next CRC-XModem (16-bit) value.
+; LBL A': Enter byte in HEX mode (00..FF) and calculate next CRC-CCITT (16-bit) value.
+; LBL B': Enter byte in HEX mode (00..FF) and calculate next CRC-CCITTB (16-bit) value.
+; LBL C': Enter byte in HEX mode (00..FF) and calculate next CRC-Dallas (8-bit) value.
+; LBL D': Enter byte in HEX mode (00..FF) and calculate next CRC-XOR (16-bit) value.
+; LBL E': Initialize new CRC sequence, switch to HEX mode.
+
+; Registers
+;  H1 ... CRC accumulator
+;  H2 ... loop counter
+;  H3 ... polynom
+
+; value 0xFFFF
+LBL F
+	0F 0F 0F 0F
+	RTN
+
+; process CRC with right shift
+LBL RGH
+	; xor CRC with data byte
+	X/T
+	8 HIR 02	; STO H2, loop counter
+	( HIR 11	; RCL H1, CRC accumulator
+	XOR X/T )	; XOR with data byte
+	HIR 01		; STO H1, CRC accumulator
+LBL 0FA
+	; mask bit 0
+	( HIR 11	; RCL H1, CRC accumulator
+	AND 1 )		; check bit 0
+	X/T
+
+	; shift CRC right
+	( HIR 11	; RCL H1, CRC accumulator
+	RGH 1 ) INT	; shift right and integer
+	HIR 01		; STO H1, CRC accumulator
+
+	; XOR with polynom
+	0
+	EQ 0F9		; bit 0 is zero
+	( HIR 11	; RCL H1, CRC accumulator
+	XOR HIR 13 )	; RCL H3, XOR with polynom
+	HIR 01		; STO H1, CRC accumulator
+LBL 0F9
+	; loop next bit
+	HIR 0E2 0FA	; DJNZ H2 0FA, loop
+	RTN
+
+; get swapped CRC bytes
+LBL X/T
+	( ( ( HIR 11	; RCL H1, CRC accumulator
+	AND 0F 0F )
+	LFT 8 ) OR
+	( ( HIR 11	; RCL H1, CRC accumulator
+	AND 0F 0F 0 0 )
+	RGH 8 ) )
+	RTN
+
+; LBL A: Enter byte in HEX mode (00..FF) and calculate next CRC32 value.
+LBL A
+	; initialize
+	HEX
+	IFF 0 0F8
+	X/T
+	F F		; initialize value 0xFFFFFFFF
+	HIR 01		; STO H1, CRC accumulator
+	0E 0D 0B 8 8 3 2 0 ; polynom 0xEDB88320
+	HIR 03		; STO H3, polynom
+	X/T
+	STF 0
+LBL 0F8
+	; process CRC with right shift
+	SBR RGH
+
+	; get result CRC
+	( HIR 11	; RCL H1, CRC accumulator
+	XOR F F )	; invert CRC with 0xFFFFFFFF
+	RTN
+	GTO A
+
+; LBL B: Enter byte in HEX mode (00..FF) and calculate next CRC16-IBM value.
+LBL B
+	; initialize
+	HEX
+	IFF 0 0F5
+	X/T
+	0 		; initialize value
+LBL 0F7
+	HIR 01		; STO H1, CRC accumulator
+	0A 0 0 1	; polynom 0xA001
+LBL 0F6
+	HIR 03		; STO H3, polynom
+	X/T
+	STF 0
+LBL 0F5
+	; process CRC with right shift
+	SBR RGH
+
+	; get result CRC
+	HIR 11		; RCL H1, CRC accumulator
+	RTN
+	GTO B
+
+; LBL C: Enter byte in HEX mode (00..FF) and calculate next CRC16-Modbus value.
+LBL C
+	; initialize
+	HEX
+	IFF 0 0F5
+	X/T
+	F		; initialize value 0xFFFF
+	GTO 0F7
+
+; LBL D: Enter byte in HEX mode (00..FF) and calculate next CRC16-Kermit value.
+LBL D
+	; initialize
+	HEX
+	IFF 0 0F3
+	X/T
+	0 		; initialize value
+LBL 0F4
+	HIR 01		; STO H1, CRC accumulator
+	8 4 0 8		; polynom 0x8408
+	HIR 03		; STO H3, polynom
+	X/T
+	STF 0
+LBL 0F3
+	; process CRC with right shift
+	SBR RGH
+
+	; get result CRC (swap bytes)
+	SBR X/T		; get swapped bytes
+	RTN
+	GTO D
+
+; LBL E: Enter byte in HEX mode (00..FF) and calculate next CRC-XModem value.
+LBL E
+	; initialize
+	HEX
+	IFF 0 0EF
+	X/T
+	0		; initialize value
+	GTO 0F0
+
+; LBL A': Enter byte in HEX mode (00..FF) and calculate next CRC-CCITT value.
+LBL A'
+	; initialize
+	HEX
+	IFF 0 0EF
+	X/T
+	F		; initialize value 0xFFFF
+LBL 0F0
+	HIR 01		; STO H1, CRC accumulator
+	X/T
+	STF 0
+LBL 0EF
+	; swap CRC bytes and XOR with data
+	( X/T
+	SBR X/T		; get swapped bytes
+	XOR X/T )	; XOR with data
+
+	; XOR with 2nd nibble
+	( CE XOR
+	( ( CE AND 0F 0 ) 
+	RGH 4 ) )
+
+	; XOR with 1st nibble
+	( CE XOR
+	( ( CE AND 0F )
+	LFT 0C ) )
+
+	; XOR with middle
+	( CE XOR
+	( ( CE AND 0F 0F )
+	LFT 5 ) )
+
+	; store CRC
+	HIR 01		; STO H1, CRC accumulator
+	RTN
+	GTO A'
+
+; LBL B': Enter byte in HEX mode (00..FF) and calculate next CRC-CCITTB value.
+LBL B'
+	; initialize
+	HEX
+	IFF 0 0EF
+	X/T
+	1 0D 0 0F	; initialize value
+	GTO 0F0
+
+; LBL C': Enter byte in HEX mode (00..FF) and calculate next CRC-Dallas value.
+LBL C'
+	; initialize
+	HEX
+	IFF 0 0F5
+	X/T
+	0 		; initialize value
+	HIR 01		; STO H1, CRC accumulator
+	8 0C		; polynom 0x8C
+	GTO 0F6
+
+; LBL D': Enter byte in HEX mode (00..FF) and calculate next CRC-XOR value.
+LBL D'
+	; initialize
+	HEX
+	IFF 0 0ED
+	X/T
+	0		; initialize value
+	HIR 01		; STO H1, CRC accumulator
+	X/T
+	STF 0
+LBL 0ED
+	; XOR with data
+	( CE XOR HIR 11	) ; RCL H1, CRC accumulator
+	HIR 01		; STO H1, CRC accumulator
+
+	; roll left
+	( ( ( CE LFT 1 )
+	AND F )		; 0xFFFF
+	OR 
+	( ( ( HIR 11	; RCL H1, CRC accumulator
+	AND 8 0 0 0 )
+	RGH 1 5 ) ) )
+
+	; store CRC
+	HIR 01		; STO H1, CRC accumulator
+	RTN
+	GTO D'
+
+; LBL E': Initialize new CRC sequence, switch to HEX mode.
+LBL E'
+	HEX
+	INV STF 0
+	RTN

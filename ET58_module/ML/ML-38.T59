@@ -1,0 +1,203 @@
+; ML-38 (MU-06) Shell Sort
+;                  Geom  Mean
+; N   Enter  Sort  View  Median
+
+; LBL A: Enter number of elements N (max. 100)
+; LBL B: Enter elements from index n (=0..N-1), continue with R/S
+; LBL C: Sort
+; LBL D: View sorted elements from index n (=0..N-1), continue with R/S
+; LBL D': Display geometric mean
+; LBL E: Display median (middle element of sorted array)
+; LBL E': Display arithmetic mean (average value)
+
+; Registers:
+;  H1 ... memory index
+;  H2 ... temporary save last entered value
+;  H3 ... number of elements N
+;  H4 ... current index
+;  H5 ... max. element to sort
+;  H6 ... start index
+;  H7 ... step size
+;  H8 ... last element
+
+;  R00.. data
+
+; LBL C: Sort
+LBL C 
+	; display prompt "Working..."
+	SBR =
+
+	; prepare last element and step size
+	HIR 13		; RCL H3, number of elements
+	( CE - 1 )	; last element
+	( HIR 08 	; STO H8, last element
+	HIR 05 / 2 ) 	; STO H5, max. element to sort
+	INT 		; integer, start step size
+	CP		; clear reg. T
+	EQ NOP		; invalid number of entries, stop
+	GTO 0FC		; set step size
+
+	; new step size
+LBL 0FD
+	; prepare max. element to sort
+	HIR 18 		; RCL H8, last element
+	HIR 05 		; STO H5, max. element to sort
+
+	; shift next step size (N/2, 13, 4, 1)
+	HIR 17 		; RCL H7, step size
+	X/T
+	1 3 
+	INV GE 0FC	; step size > 13, use 13
+	4 
+	INV GE 0FC	; step size > 4, use 4
+	1 		; step size > 1, use 1
+	EQ NOP		; step size already = 1, end of sorting
+LBL 0FC
+	HIR 07 		; STO H7, set new step size
+
+	; initialize max. element
+	HIR 55 		; INV SUM H5, prepare max. element to sort
+	0 HIR 06 	; STO H6, start index
+
+	; sort from start (here is X = new start index)
+LBL 0F8
+	; initialize current index to 1st entry
+	HIR 04 		; STO H4, current index
+
+LBL 0FB ; here is X and H4 = current memory index
+
+	; compare two entries
+	HIR 01		; STO H1, memory index
+	HI* 11 		; HIR RCL H1, get entry 1
+	X/T 
+	HIR 17 		; RCL H7, step size
+	HIR 31		; SUM H1, shift to next entry
+	HI* 11		; HIR RCL H1, get entry 2
+	GE 0FA		; entry 2 >= entry 1, sorted OK
+
+	; exchange two entries
+	X/T
+	HI* 01		; HIR STO H1, set entry 1 into index 2
+	HIR 14 		; RCL H4, current index
+	HIR 01		; STO H1, return memory index
+	X/T 
+	HI* 01		; HIR STO H1, set entry 2 into index 1
+
+	; decrease current index
+	HIR 17 		; RCL H7, step size
+	HIR 54 		; INV SUM H4, current index
+
+	; check start of memory
+	CP		; clear reg. T
+	HIR 14 		; RCL H4, current index
+	GE 0FB		; if H4 > 0, current index is OK, new check
+
+LBL 0FA
+	; increase start index
+	HIR 76 		; Inc H6, increase start index
+	HIR 16 		; RCL H6, start index
+	X/T 
+	HIR 15 		; RCL H5, max. element to sort
+	INV GE 0FD	; if H5 < H6 then restart with new step size
+	X/T 
+	GTO 0F8		; sort with this start index
+
+; display prompt, X = message (3=Result, 5=Enter)
+LBL STA
+	OP 53 OP 01	; load text "  ???" into register 1
+	HIR 11 X/T	; RCL H1, current index
+	5 9	 	; prepare characters '['
+	OP 54		; add index i to text
+	6 1 0 0		; add character ']'
+	OP 02		; save text into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	RTN
+
+; LBL A: Enter number of elements N
+LBL A
+	HIR 03		; STO H3, number of elements
+	0
+	RTN
+
+; LBL B: Enter elements from index n, continue with R/S
+LBL B 
+	HIR 01		; STO H1, store memory index
+	HIR 02		; STO H2, temporary save last entered value
+
+LBL IXI
+	5 SBR STA	; display prompt "Enter [i]"
+
+	; display last entered value and stop
+	HIR 12		; RCL H2, temporary save last entered value
+	RTN		; wait for R/S
+
+	; save entered value
+	HIR 02		; STO H2, temporary save last entered value
+	HI* 01		; STO Ind H1, save value
+
+	; move to next entry
+	HIR 71		; Inc H1, increase index
+	IF 91 03 IXI	; if H1 < H3 jump IXI
+	GTO NOP
+
+; LBL D: View sorted elements from index n (=0..N-1), continue with R/S
+LBL D
+	HIR 01		; STO H1, store memory index
+
+LBL SIN
+	3 SBR STA	; display prompt "Result [i]"
+
+	; display result and stop
+	HI* 11		; RCL Ind H1, load value
+	RTN		; wait for R/S
+
+	; move to next entry
+	HIR 71		; Inc H1, increase index
+	IF 91 03 SIN	; if H1 < H3 jump SIN
+
+LBL NOP
+	; stop
+	PGM 03 SBR NOP	; display "Ready"
+	0
+	RTN
+
+; LBL = display "Working..."
+;  Called from ML-39
+LBL =
+	6 6 OP 53 OP 01	; load text " Working" into register 1
+	6 7 . 5 OP 53 OP 02 ; load text "..." into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	0
+	PAU
+	RTN
+
+; LBL D': Display geometric mean
+LBL D'
+	CLR HIR 01	; STO H1, store memory index
+	1
+LBL TAN
+	* HI* 11	; RCL Ind H1
+	HIR 71		; Inc H1, increase index
+	IF 91 03 TAN	; if H1 < H3 jump TAN
+	= INV YX HIR 13 = ; RCL H3, number of elements
+	RTN
+
+; LBL E: Display median (middle element of sorted array)
+LBL E
+	( HIR 13 / 2 )	; RCL H3, number of elements
+	INT 		; integer
+	HIR 01		; STO H1, memory index
+	HI* 11		; RCL Ind H1, median
+	RTN
+
+; LBL E': Display arithmetic mean (average value)
+LBL E'
+	CLR HIR 01	; STO H1, store memory index
+LBL COS
+	+ HI* 11	; RCL Ind H1
+	HIR 71		; Inc H1, increase index
+	IF 91 03 COS	; if H1 < H3 jump COS
+	= / HIR 13 =	; RCL H3, number of elements
+	RTN

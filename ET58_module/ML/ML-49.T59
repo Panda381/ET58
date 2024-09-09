@@ -1,0 +1,94 @@
+; ML-49 Reaction Time, stopwatch
+;
+; React         Start  Pause
+
+; LBL A: Start new measurement of reaction time.
+; LBL D: Start stopwatch.
+;        Max. interval of stopwatch: 10 minutes.
+; LBL E: Pause stopwatch (display lap time), continue stopwatch (or R/S).
+
+; Registers
+;  H1 ... loop counter
+
+; LBL A: Start new measurement of reaction time.
+LBL A
+	CLR
+
+	; display prompt 'Wait...'
+	9 4 OP 53 OP 01	; prepare text 'Wait' into print register 1
+	6 7 . 5 OP 53 OP 02 ; prepare text '...' into print register 2
+	OP 0A		; print registers 1 and 2 to 1st row of display while running
+
+	; wait random time
+	RND		; random
+	* 3 + 1 =	; random number 1..4 (= 1..4 seconds)
+	X/T
+	OP 83		; start measure time
+LBL RND
+	OP 40		; flush key from keyboard
+	OP 84		; get elapsed time
+	INV GE RND	; wait
+
+	; display prompt 'Press a Key'
+	9 5 OP 53 OP 01	; prepare text 'Press' into print register 1
+	9 6 . 2 OP 53 OP 02 ; prepare text 'a Key' into print register 2
+	OP 0A		; print registers 1 and 2 to 1st row of display while running
+
+	; flush key from keyboard
+	0 HIR 01	; STO H1, reset loop counter
+	OP 40		; input key from keyboard
+	OP 83		; start measure time
+LBL SIN
+	; display progress bar
+	HIR 11		; RCL H1, loop counter
+	OP 46		; display progress bar
+
+	; check key
+	2 5 5 X/T	; code of invalid key
+	OP 40		; input key from keyboard
+	INV EQ COS	; key is pressed
+
+	; delay and loop
+	OP 80		; short delay 10 ms
+	8 0 X/T		; maximum
+	HIR 71		; Inc H1, increase loop counter
+	HIR 11		; RCL H1, loop counter
+	INV GE SIN	; wait
+
+LBL COS
+	OP 84		; get elapsed time
+	X/T
+
+	; display prompt 'Reaction Time:'
+	9 7 OP 53 OP 01	; prepare text 'Reaction' into print register 1
+	6 5 OP 53 2 6 0 0 0 0 OP 02 ; prepare text 'Time:' into print register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+
+	; display reaction time
+	X/T
+	RTN
+	GTO A
+
+; LBL D: Start stopwatch.
+LBL D
+	CLR
+	OP 83		; start measure time
+LBL X2
+	; print current time 'Time 1.23'
+	6 5 OP 53 OP 03	; prepare text 'Time' into print register 3
+	OP 84		; get elapsed time
+	OP 0E		; print registers 3 with X to 2nd row of display while running
+
+	; input from keyboard
+	OP 40 X/T	; input key from keyboard
+	2 5 5		; code of invalid key
+	EQ X2		; key is not pressed
+
+; LBL E: Pause stopwatch (display lap time), continue stopwatch (or R/S).
+	2 1 		; code of E key
+	INV EQ X2	; not E key
+	OP 84		; get elapsed time
+	RTN		; stop stopwatch
+LBL E
+	GTO	X2	; continue stopwatch

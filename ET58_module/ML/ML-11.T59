@@ -1,0 +1,420 @@
+; ML-11 Triangle Solution (1), 2 or 3 sides
+;                     PERIM
+;  SSS  SSA  ASS  SAS  AREA
+
+;          A
+;        /   \
+;       /c   b\
+;      /   a   \
+;     B ------- C
+
+; LBL A: method SSS, enter sides a, b, c, get angles A, B, C
+; LBL B: method SSA, enter sides a, b, angle A, get side c and angles B, C
+; LBL C: method ASS, enter angle B, sides a, b, get side c and angles A, C
+; LBL D: method SAS, enter side a, angle C, side b, get side c and angles A, B
+; LBL E: calculate triangle area (from 3 sides)
+; LBL E': calculate triangle perimeter (from 3 sides)
+
+; Registers:
+;  H1 ... side a
+;  H2 ... side b
+;  H3 ... side c
+;  H4 ... angle A
+;  H5 ... angle B
+;  H6 ... angle C
+;  H7 ... saved last value, triangle perimeter
+
+; ===== enter side a..c
+
+; enter side a
+LBL 0F1
+	HIR 07		; STO H7, save last value
+	0 GTO 0F0	; prompt to enter side a
+
+; enter side b
+LBL 0F2
+	HIR 07		; STO H7, save last value
+	1 GTO 0F0	; prompt to enter side b
+
+; enter side c
+LBL 0F3
+	HIR 07		; STO H7, save last value
+	2 		; prompt to enter side c
+
+; Display prompt to enter side
+LBL 0F0
+	( X/T		; name index 0..2 -> T
+	5 1 OP 53	; load text "Side"
+	0 0 6 5		; add text " a"
+	GTO 0F8
+
+; ===== enter angle A..C
+
+; enter angle A
+LBL 0F5
+	HIR 07		; STO H7, save last value
+	0 GTO 0F4	; prompt to enter angle A
+
+; enter angle B
+LBL 0F6
+	HIR 07		; STO H7, save last value
+	1 GTO 0F4	; prompt to enter angle B
+	
+; enter angle C
+LBL 0F7
+	HIR 07		; STO H7, save last value
+	2		; prompt to enter angle C
+
+; Display prompt to enter angle
+LBL 0F4
+	( X/T		; name index 0..2 -> T
+	5 0 OP 53	; load text "Angle"
+	0 0 3 3		; add text " A"
+LBL 0F8
+	+ X/T )		; add angle name
+	OP 02		; save text into register 2
+	5
+LBL 0F9
+	OP 53 OP 01	; load text " Enter" into register 1
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	HIR 17		; RCL H7, restore last value
+	RTN
+
+; ===== view side a..c
+
+; view side a
+LBL 0E1
+	HIR 11		; RCL H1, side a
+	HIR 07		; STO H7, save last value
+	0 GTO 0E0	; info to view side a
+
+; view side b
+LBL 0E2
+	HIR 12		; RCL H2, side b
+	HIR 07		; STO H7, save last value
+	1 GTO 0E0	; info to view side b
+
+; view side c
+LBL 0E3
+	HIR 13		; RCL H3, side c
+	HIR 07		; STO H7, save last value
+	2 		; info to view side c
+
+; Display info to view side
+LBL 0E0
+	( X/T		; name index 0..2 -> T
+	5 1 OP 53	; load text "Side"
+	0 0 6 5		; add text " a"
+	GTO 0E8
+
+; ===== view angle A..C
+
+; view angle A
+LBL 0E5
+	HIR 14		; RCL H4, angle A
+	HIR 07		; STO H7, save last value
+	0 GTO 0E4	; info to view angle A
+
+; view angle B
+LBL 0E6
+	HIR 15		; RCL H5, angle B
+	HIR 07		; STO H7, save last value
+	1 GTO 0E4	; info to view angle B
+
+; view angle C
+LBL 0E7
+	HIR 16		; RCL H6, angle C
+	HIR 07		; STO H7, save last value
+	2 		; info to view angle C
+
+; Display info to view angle
+LBL 0E4
+	( X/T		; name index 0..2 -> T
+	5 0 OP 53	; load text "Angle"
+	0 0 3 3		; add text " A"
+LBL 0E8
+	+ X/T )		; add angle name
+	OP 02		; save text into register 2
+	3 GTO 0F9	; load text " Result" into register 1
+
+; ===== calculate all angles from 3 sides
+LBL RAD
+	SBR DEG		; calculate angle C
+	SBR RGH		; rotate sides and angles
+	SBR DEG		; calculate angle B
+	SBR RGH		; rotate sides and angles
+	SBR DEG		; calculate angle C
+
+; ===== rotate sides and angles a -> b -> c -> a, A -> B -> C -> A
+LBL RGH
+	HIR 11		; RCL H1, side a
+	HIR 92		; Exc H2, side b
+	HIR 93		; Exc H3, side c
+	HIR 01		; STO H1, side a
+
+	HIR 14		; RCL H4, angle A
+	HIR 95		; Exc H5, angle B
+	HIR 96		; Exc H6, angle C
+	HIR 04		; STO H4, angle A
+	RTN
+
+; ===== calculate angle C from sides a, b, c
+;   cos(C) = (a^2 + b^2 - c^2)/(2*a*b) ... law of cosines (cosine rule)
+LBL DEG
+	( ( HIR 11 X2	; RCL H1, side a
+	+ HIR 12 X2	; RCL H2, side b
+	- HIR 13 X2 )	; RCL H3, side c
+	/ 2 / HIR 11	; RCL H1, side a
+	/ HIR 12	; RCL H2, side b
+	) INV COS	; acos
+	HIR 06		; STO H6, angle C
+	RTN
+
+; ===== calculate angle B from sides a, b and angle A
+;   sin(B) = sin(A)*b/a ... law of sines (sine rule)
+LBL GRD
+	( ( HIR 14	; RCL H4, angle A
+	SIN		; sinus
+	* HIR 12	; * side b
+	/ HIR 11	; / side a
+	) INV SIN	; asin
+	HIR 05		; angle B
+	RTN
+
+; ===== calculate angle A from sides a, b and angle B
+;   sin(A) = sin(B)*a/b ... law of sines (sine rule)
+LBL YX
+	( ( HIR 15	; RCL H5, angle B
+	SIN		; sinus
+	* HIR 11	; * side a
+	/ HIR 12	; / side b
+	) INV SIN	; asin
+	HIR 04		; angle A
+	RTN
+
+; ===== calculate angle C from angles A and B
+;   A + B + C = 180° (pi)
+LBL sin
+	( 1 +/- INV COS	; 180 degrees
+	- HIR 14	; RCL H4, angle A
+	- HIR 15 )	; RCL H5, angle B
+	HIR 06		; angle C
+	RTN
+
+; ===== calculate side c from sides a, b and angle C
+;   c^2 = a^2 + b^2 - 2*a*b*cos(C) ... law of cosines (cosine rule)
+LBL cos
+	( HIR 11 X2	; RCL H1, side a
+	+ HIR 12 X2	; RCL H2, side b
+	- 2 * HIR 11	; RCL H1, side a
+	* HIR 12	; RCL H2, side b
+	* HIR 16 COS )	; RCL H6, angle C
+	SQR		; square root
+	HIR 03		; STO H3, side c
+	RTN
+
+; LBL A: method SSS, enter sides a, b, c, get angles A, B, C
+;   cos(C) = (a^2 + b^2 - c^2)/(2*a*b) ... law of cosines (cosine rule)
+;   cos(A) = (b^2 + c^2 - a^2)/(2*b*c)
+;   cos(B) = (c^2 + a^2 - b^2)/(2*c*a)
+LBL A
+	; enter side a
+	SBR 0F1		; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; enter side b
+	SBR 0F2		; prompt to enter side b
+	RTN
+	HIR 02		; STO H2, save side b
+
+	; enter side c
+	SBR 0F3		; prompt to enter side c
+	RTN
+	HIR 03		; STO H3, save side c
+
+	; calculate all angles from 3 sides
+	SBR RAD
+
+	; view angle A
+	SBR 0E5		; info to view angle A
+	RTN
+
+	; view angle B
+	SBR 0E6		; info to view angle B
+	RTN
+
+	; view angle C
+	SBR 0E7		; info to view angle C
+	RTN
+
+	; calculate triangle area
+	GTO E
+
+; LBL B: method SSA, enter sides a, b, angle A, get side c and angles B, C
+;   sin(B) = sin(A)*b/a ... law of sines (sine rule)
+;   A + B + C = 180° (pi)
+;   c^2 = a^2 + b^2 - 2*a*b*cos(C) ... law of cosines (cosine rule)
+LBL B
+	; enter side a
+	SBR 0F1		; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; enter side b
+	SBR 0F2		; prompt to enter side b
+	RTN
+	HIR 02		; STO H2, save side b
+
+	; enter angle A
+	SBR 0F5		; prompt to enter angle A
+	RTN
+	HIR 04		; STO H4, save angle A
+
+	; calculate angle B from sides a, b and angle A
+	SBR GRD
+
+	; calculate angle C from angles A and B
+	SBR sin
+
+	; calculate side c from sides a, b and angle C
+	SBR cos
+
+	; view side c
+	SBR 0E3		; info to view side c
+	RTN
+
+	; view angle B
+	SBR 0E6		; info to view angle B
+	RTN
+
+	; view angle C
+	SBR 0E7		; info to view angle C
+	RTN
+
+	; calculate triangle area
+	GTO E
+
+; LBL C: method ASS, enter angle B, sides a, b, get side c and angles A, C
+;   sin(A) = sin(B)*a/b ... law of sines (sine rule)
+;   A + B + C = 180° (pi)
+;   c^2 = a^2 + b^2 - 2*a*b*cos(C) ... law of cosines (cosine rule)
+LBL C
+	; enter angle B
+	SBR 0F6		; prompt to enter angle 6
+	RTN
+	HIR 05		; STO H5, save angle B
+
+	; enter side a
+	SBR 0F1		; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; enter side b
+	SBR 0F2		; prompt to enter side b
+	RTN
+	HIR 02		; STO H2, save side b
+
+	; calculate angle A from sides a, b and angle B
+	SBR YX
+
+	; calculate angle C from angles A and B
+	SBR sin
+
+	; calculate side c from sides a, b and angle C
+	SBR cos
+
+	; view side c
+	SBR 0E3		; info to view side c
+	RTN
+
+	; view angle A
+	SBR 0E5		; info to view angle A
+	RTN
+
+	; view angle C
+	SBR 0E7		; info to view angle C
+	RTN
+
+	; calculate triangle area
+	GTO E
+
+; LBL D: method SAS, enter side a, angle C, side b, get side c and angles A, B
+;   c^2 = a^2 + b^2 - 2*a*b*cos(C) ... law of cosines (cosine rule)
+LBL D
+	; enter side a
+	SBR 0F1		; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; enter angle C
+	SBR 0F7		; prompt to enter angle C
+	RTN
+	HIR 06		; STO H6, save angle C
+
+	; enter side b
+	SBR 0F2		; prompt to enter side b
+	RTN
+	HIR 02		; STO H2, save side b
+
+	; calculate side c from sides a, b and angle C
+	SBR cos
+
+	; calculate all angles from 3 sides
+	SBR RAD
+
+	; view side c
+	SBR 0E3		; info to view side c
+	RTN
+
+	; view angle A
+	SBR 0E5		; info to view angle A
+	RTN
+
+	; view angle B
+	SBR 0E6		; info to view angle B
+	RTN
+
+; LBL E: calculate triangle area (from 3 sides)
+;  s = (a + b + c) / 2 ... half of triangle perimeter
+;  S = sqrt(s*(s-a)*(s-b)*(s-c)) ... Heron's Formula to get triangle area from 3 sides
+LBL E
+	; print text "Triangle Area"
+	( 5 2 OP 53	; load text "Triangle"
+	OP 01		; save text into register 1
+	5 3 OP 53 0 0 OP 02 ) ; load text "  Area" into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	; calculate triangle area
+	( ( HIR 11	; RCL H1, side a
+	+ HIR 12	; RCL H2, side b
+	+ HIR 13 )	; RCL H3, side c
+	/ 2 ) HIR 07	; STO H7, save half of triangle perimeter s
+	( HIR 17 *	; RCL H7, s
+	( HIR 17	; RCL H7, s
+	- HIR 11 )	; RCL H1, side a
+	* ( HIR 17	; RCL H7, s
+	- HIR 12 )	; RCL H2, side b
+	* ( HIR 17	; RCL H7, s
+	- HIR 13 ) )	; RCL H3, side c
+	SQR		; aquare root
+	RTN
+
+; LBL E': calculate triangle perimeter (from 3 sides)
+;  s = (a + b + c) ... triangle perimeter
+LBL E'
+	; print text "Triangle Area"
+	( 5 2 OP 53	; load text "Triangle"
+	OP 01		; save text into register 1
+	5 4 OP 53 OP 02 ) ; load text " Perimet" into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	; calculate triangle perimeter
+	( HIR 11	; RCL H1, side a
+	+ HIR 12	; RCL H2, side b
+	+ HIR 13 )	; RCL H3, side c
+	RTN
+
+	CLR
+	RTN

@@ -1,0 +1,138 @@
+; ML-42 (MU-16) MINIMAX
+;
+;  Max   x->crit   next   f(x)   f'(x)
+
+; To use, first create function in main program, with label A'.
+
+; LBL A: Enter max. limit of X to search critical point
+; LBL B: Find critical point X starting from entered minimal X
+;         If fount, T reg. contains critical type: -1 maximum, 1 minimum.
+; LBL C: Find next point (or R/S)
+; LBL D: Get value of function at X
+; LBL E: Get derivation of function at X
+;   - Before compute derivation, enter maximum with A and minimum with B (to prepare delta x).
+
+; Registers:
+;  H1 ... iteration counter
+;  H2 ... small delta to get derivation
+;  H3 ... temporary save current X to check derivation
+;  H4 ... max. limit Xmax
+;  H5 ... last found critical x
+;  H6 ... previous derivation f(x)
+;  H7 ... search increment dx
+;  H8 ... current step size delta x
+;  H9 ... sign of last critical found (-1 maximum, 1 minimum)
+;  H10 ... sign of previous derivation
+
+; LBL E: Get derivation of function at X
+;  f'(x) = (f(x+eps) - f(x-eps)) / (2*eps)
+LBL E
+	( ( ( 
+	HIR 03		; STO H3, temporary save current X to check derivation
+	+ HIR 12 ) 	; RCL H2, small eps to get derivation
+	D		; get user function f(x)
+	- ( HIR 13	; RCL H3, temporary save current X to check derivation
+	- HIR 12 ) 	; RCL H2, small eps to get derivation
+	D )		; get user function f(x)
+	/ 2 
+	/ HIR 12 ) 	; RCL H2, small eps to get derivation
+	RTN 
+
+; LBL A: Enter max. limit of X to search critical point
+LBL A
+	HIR 04		; STO H4, max. limit Xmax
+	RTN
+
+; LBL C: Find next point (or R/S)
+LBL C
+	HIR 15		; RCL H5, last found critical x
+
+; LBL B: Find critical point X, starting from entered minimal X
+LBL B
+	; prepare step size dx
+	HIR 05		; STO H5, save last x
+	( ( HIR 14	; RCL H4, max. limit Xmax
+	- HIR 15 )	; RCL H5, current x
+	/ 1 0 0 )	; step size
+	( HIR 07	; STO H7, search increment dx
+	/ 1 0 0 0 0 )
+	HIR 02		; STO H2, small eps to get derivation
+	X/T 0 GE 1/X	; error, not found
+
+	; prepare new x to check
+	( HIR 15 +	; RCL H5, current X
+	HIR 17 		; RCL H7, search increment dx
+	HIR 08 ) 	; STO H8, current step size delta x
+	HIR 05 		; STO H5, last found critical x
+
+	; prepare delta x and iteration counter
+	5 0 0 0 0 0 HIR 01 ; STO H1, iteration counter
+	0 HIR 0A 	; STO H10, sign of previous derivation
+
+LBL 0FD
+	; calculate derivation at X
+	HIR 15 		; RCL H5, last found critical x
+	E		; Get derivation f'(x)
+
+	; critical point has been found (derivation = 0)
+	CP 		; clear reg. T
+	HIR 06 		; STO H6, previous derivation f(x)
+	EQ 0F7	 	; derivation = 0, critical has been found
+
+	; previous derivation was critical, use this derivation
+	HIR 1A 		; RCL H10, sign of previous derivation
+	EQ 0F9	 	; previous derivation was critical
+
+	; compare derivation sign, if it has been changed
+	X/T 
+	HIR 16 		; RCL H6, previous derivation f(x)
+	OP 10 		; sign
+	INV EQ 0F8	; no critical, but sign has been changed
+
+LBL 0FA
+	HIR 18 		; RCL H8, current step size delta x
+	HIR 35		; SUM H5, shift X, last found critical x
+
+	HIR 14		; RCL H4, max. limit Xmax
+	X/T
+	HIR 15		; RCL H5, current X
+	GE 1/X		; not found
+
+	; next loop
+	HIR 0E1 0FD	; DJNZ H1 0FD, iteration counter
+
+LBL 1/X
+	; error, not found
+	CP
+	CLR 1/X
+	HIR 15		; RCL H5, last found critical x
+	RTN
+	GTO C		; repeat
+
+; previous derivation was critical, simulate from this derivation
+LBL 0F9
+	HIR 16 		; RCL H6, previous derivation f(x)
+	OP 10		; sign
+	HIR 0A +/- 	; STO H10, sign of previous derivation
+	HIR 09 		; STO H9, sign of last critical found (-1 maximum, 1 minimum)
+	GTO 0FA 
+
+; sign has been changed, smoother step size delta x
+LBL 0F8
+	HIR 0A 		; STO H10, sign of previous derivation
+	2 +/-
+	HIR 68 		; INV Prd H8, /-2, smoother current step size delta x
+	GTO 0FA 
+
+; critical has been found
+LBL 0F7
+	HIR 19 		; RCL H9, sign of last critical found (-1 maximum, 1 minimum)
+	X/T 
+	HIR 15		; RCL H5, last found critical x
+	RTN
+	GTO C		; repeat
+
+; LBL D: Get value of function at X
+LBL D 
+	PGM 00 A' 
+	RTN 

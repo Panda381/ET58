@@ -1,0 +1,86 @@
+; ML-07 Polynomial Evaluaton
+;
+;   n   i;ai   x->P(x)
+
+; LBL A: enter polynom size n
+; LBL B: enter coefficients, starting with i=0...
+; LBL C: calculate polynom P(x)
+
+; Registers:
+;  H1 ... index pointer (starting from memory 10)
+;  H2 ... index of entered entry, entry counter
+;  H3 ... input X value
+;  H4 ... polynom size n
+;  H5 ... save entered number
+
+;  R10... .. polynom coefficients
+
+; LBL A: enter polynom size n
+LBL A
+	HIR 04	; STO H4, save polynom size
+	X/T
+	4 9 OP 53 OP 01	; load text " Polynom" into register 1
+	; a   0   .   .   a
+	6 5 1 6 1 4 1 4 6 5 ; text " a0..a"
+	OP 54		; add polynom size to text
+	OP 02		; save text into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	X/T		; restore polynom size
+	RTN
+
+; LBL B: enter coefficients, starting with i=0...
+LBL B
+	HIR 02	; STO H2, save index of entered entry
+	( HIR 05  ; STO H5, save entered number
+	+ 1 0 )	; starting with memory register 10
+	HIR 01	; STO H1, save index pointer
+
+LBL IXI
+	; display info about coefficient: " Enter a2 "
+	HIR 12		; RCL H2, prepare index
+	X/T		; save index into T register
+	5 OP 53 OP 01	; load text "  Enter" into register 1
+	6 5		; text 'a'
+	OP 54		; add index i to text
+	0 0 0 0 0 0	; add some spaces
+	OP 02		; save text into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+LBL +/-
+	HIR 15		; RCL H5, restore last number
+	RTN		; STOP
+
+	; save new number
+	HIR 05		; STO H5, save entered number
+	HI* 01		; STO Ind H1, store coefficient
+
+	; move to next entry
+	IF 92 04 SQR	; if H2 < H4 jump SQR, if current index i < number of entries, skip
+
+	; all done
+	PGM 03 SBR NOP	; display "Ready"
+	GTO +/-
+
+LBL SQR
+	HIR 71		; Inc H1, increase index pointer
+	HIR 72		; Inc H2, increase index
+	GTO IXI
+
+; LBL C: calculate polynom P(x)
+LBL C
+	HIR 03		; STO H3, save input X
+	( HIR 14	; RCL H4, polynom size n
+	HIR 02		; STO H2, entry counter
+	+ 1 0 )		; starting index
+	HIR 01		; STO H1, save index pointer
+	HIR 72		; Inc H2, increase entry counter + 1
+	HI* 11		; RCL Ind H1, load last entry a(n)
+LBL DEG
+	HIR 0F2 RAD	; DJZ H2, Dec H2 and jump to RAD if H2 = 0
+	HIR 81		; Dec H1, decrement entry index
+	( CE * HIR 13	; RCL H3, polynom accumulator * X
+	+ HI* 11 )	; RCL Ind H1, add next entry a(n-1)
+	GTO DEG
+LBL RAD
+	RTN

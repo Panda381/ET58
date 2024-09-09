@@ -1,0 +1,325 @@
+; ML-13 Curve Solution
+;
+;  th,r  th,s   th,c   r,s   r,c
+
+; LBL A: enter angle th and radius r
+; LBL B: enter angle th and arc length s
+; LBL C: enter angle th and chord lenth c
+; LBL D: enter radius r and arc length s
+; LBL E: enter radius r and chord length c
+
+; Result: th, r, s, c, A, a, h
+
+; Registers:
+;  H1 ... angle th (in radians)
+;  H2 ... radius r
+;  H3 ... arc length s
+;  H4 ... chord length c
+
+; text "Angle th"
+LBL 0F1
+	X/T		; store current value
+	5 0 OP 53	; load text "Angle"
+	0 0 8 4 7 2	; add text " th"
+LBL 0F0
+	OP 02		; save text into register 2
+	RTN
+
+; text "Radius r"
+LBL 0F2
+	X/T		; store current value
+	5 5 OP 53	; load text "Radius"
+	0 0 8 2		; add text " r"
+	GTO 0F0
+
+; text "ArcLen s"
+LBL 0F3
+	X/T		; store current value
+	5 6 OP 53	; load text "ArcLen"
+	0 0 8 3		; add text " s"
+	GTO 0F0
+
+; text " Chord c"
+LBL 0F4
+	X/T		; store current value
+	5 7 OP 53	; load text "Chord"
+	0 0 6 7		; add text " c"
+	GTO 0F0
+
+; text " Area A"
+LBL 0F5
+	X/T		; store current value
+	5 3 OP 53	; load text "Area"
+	0 0 3 3		; add text " A"
+	GTO 0F0
+
+; text "SgArea a"
+LBL 0F6
+	X/T		; store current value
+	5 8 OP 53	; load text "SgArea"
+	0 0 6 5		; add text " a"
+	GTO 0F0
+
+; text "Height h"
+LBL 0F7
+	X/T		; store current value
+	1 1 0 OP 53	; load text "Height"
+	0 0 7 2		; add text " h"
+	GTO 0F0
+
+; enter angle th
+LBL 0E1
+	SBR 0F1		; prompt
+	GTO 0E0
+
+; enter radius r
+LBL 0E2
+	SBR 0F2		; prompt
+	GTO 0E0
+
+; enter arclen s
+LBL 0E3
+	SBR 0F3		; prompt
+	GTO 0E0
+
+; enter chord c
+LBL 0E4
+	SBR 0F4		; prompt
+LBL 0E0
+	5		; text "Enter"
+LBL 0EF
+	OP 53 0 0 OP 01	; load text " Enter" into register 1
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	X/T		; restore current value
+	RTN
+
+; result angle th
+LBL 0D1
+	HIR 11		; RCL H1, angle th
+	OP 73		; from radians
+	SBR 0F1		; text
+	GTO 0D0
+
+; result radius r
+LBL 0D2
+	HIR 12		; RCL H2, radius r
+	SBR 0F2		; text
+	GTO 0D0
+
+; result arclen s
+LBL 0D3
+	HIR 13		; RCL H3, arc len s
+	SBR 0F3		; text
+	GTO 0D0
+
+; result chord c
+LBL 0D4
+	HIR 14		; RCL H4, chord c
+	SBR 0F4		; text
+	GTO 0D0
+
+; result area A
+;  A = r^2 * th / 2
+LBL 0D5
+	( HIR 12 X2	; RCL H2, radius r^2
+	* HIR 11 / 2 )	; RCL H1, * angle th / 2
+	SBR 0F5		; text
+	GTO 0D0
+
+; result segment area a
+;  a = (th - sin(th))/2*r^2
+LBL 0D6
+	( ( HIR 11	; HIR H1, angle th
+	- 
+	OP 73		; from radians
+	SIN )		; sinus
+	/ 2 		; /2
+	* HIR 12 X2 )	; HIR H2, radius r
+	SBR 0F6		; text
+LBL 0D0
+	3 GTO 0EF	; text "Result"
+
+; calculate 2*sin(th/2)
+LBL OP
+	( HIR 11 / 2 )	; RCL H1, angle th
+	( OP 73		; from radians
+	SIN * 2		; sin * 2
+	RTN
+
+; calculate arclen s from angle th and radius r
+;  s = th * r
+LBL DEG
+	( HIR 11	; RCL H1, angle th
+	* HIR 12 )	; RCL H2, radius r
+	HIR 03		; STO H3, arclen s
+	RTN
+
+; result height h
+;  h = r*(1 - cos(th/2))
+LBL RAD
+	( HIR 12	; RCL H2, radius r
+	* ( 1 -
+	( HIR 11	; RCL H1, angle th
+	/ 2 )
+	OP 73		; from radians
+	COS  ) )
+	SBR 0F7		; text
+	GTO 0D0
+
+; LBL A: enter angle th and radius r
+LBL A
+	; enter angle th
+	SBR 0E1		; prompt to enter angle th
+	RTN
+	OP 72		; convert angle into radians
+	HIR 01		; STO H1, save angle th
+	OP 73		; from radians
+
+	; enter radius r
+	SBR 0E2		; prompt to enter radius r
+	RTN
+	HIR 02		; STO H2, save radius r
+
+	; calculate arclen s from angle th and radius r
+	SBR DEG
+
+	; result arclen s
+	SBR 0D3		; result arclen s
+LBL +
+	RTN
+
+	; calculate chord length c from angle th and radius r
+	;  c = r*2*sin*(th/2)
+	SBR OP		; calculate 2*sin(th/2)
+	* HIR 12 )	; RCL H2, * radius r
+	HIR 04		; STO H4, chord length c
+
+	; result chord c
+	SBR 0D4		; result chord len c
+LBL -
+	RTN
+
+	; result area A
+	SBR 0D5		; result area A
+	RTN
+
+	; result segment area a
+	SBR 0D6		; result segment area a
+	RTN
+
+	; result height h
+	SBR RAD		; result height h
+	RTN
+
+	CLR
+	RTN
+
+; LBL B: enter angle th and arc length s
+LBL B
+	; enter angle th
+	SBR 0E1		; prompt to enter angle th
+	RTN
+	OP 72		; convert angle into radians
+	HIR 01		; STO H1, save angle th
+	OP 73		; from radians
+
+	; enter arclen s
+	SBR 0E3		; prompt to enter arclen s
+	RTN
+	HIR 03		; STO H3, save arclen s
+
+	; calculate radius r from angle th and arclen s
+	;  r = s / th
+	( HIR 13 / 	; RCL H3, arc length s
+	HIR 11 ) 	; RCL H1, / angle th
+	HIR 02		; STO H2, radius r
+
+	; result radius r
+	SBR 0D2		; result radius r
+	GTO +
+
+; LBL C: enter angle th and chord length c
+LBL C
+	; enter angle th
+	SBR 0E1		; prompt to enter angle th
+	RTN
+	OP 72		; convert angle into radians
+	HIR 01		; STO H1, save angle th
+	OP 73		; from radians
+
+	; enter chord length c
+	SBR 0E4		; prompt to enter chord length c
+	RTN
+	HIR 04		; STO H4, save chord length c
+
+	; calculate radius r from angle th and chord length c
+	;  r = c / (2*sin(th/2))
+	( HIR 14 /	; RCL H4, chord length c
+	SBR OP ) )	; calculate 2*sin(th/2)
+	HIR 02		; radius r
+
+	; result radius r
+	SBR 0D2		; result radius r
+	RTN
+
+	; calculate arclen s from angle th and radius r
+	SBR DEG
+
+	; result arclen s
+	SBR 0D3		; result arclen s
+	GTO -
+
+; LBL D: enter radius r and arc length s
+LBL D
+	; enter radius r
+	SBR 0E2		; prompt to enter radius r
+	RTN
+	HIR 02		; STO H2, save radius r
+
+	; enter arclen s
+	SBR 0E3		; prompt to enter arclen s
+	RTN
+	HIR 03		; STO H3, save arclen s
+
+	; calculate angle th from radius r and arclen s
+	;  th = s / r
+	( HIR 13 / 	; RCL H3, arc length s
+	HIR 12 ) 	; RCL H2, / radius r
+	HIR 01 		; STO H1, angle th
+
+	; result angle th
+	SBR 0D1		; result angle th
+	GTO +
+
+; LBL E: enter radius r and chord length c
+LBL E
+	; enter radius r
+	SBR 0E2		; prompt to enter radius r
+	RTN
+	HIR 02		; STO H2, save radius r
+
+	; enter chord length c
+	SBR 0E4		; prompt to enter chord length c
+	RTN
+	HIR 04		; STO H4, save chord length c
+
+	; calculate angle th from radius r and chord length c
+	;  th = 2*asin(c/2/r)
+	( ( HIR 14 / 2 	; RCL H4, chord length c / 2
+	/ HIR 12 ) 	; RCL H2, / radius r
+	INV SIN 	; asin
+	OP 72		; convert angle into radians
+	* 2 ) 		; *2
+	HIR 01		; STO H1, angle th
+
+	; result angle th
+	SBR 0D1		; result angle th
+	RTN
+
+	; calculate arclen s from angle th and radius r
+	SBR DEG
+
+	; result arclen s
+	SBR 0D3		; result arclen s
+	GTO -

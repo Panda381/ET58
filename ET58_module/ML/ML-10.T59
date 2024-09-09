@@ -1,0 +1,109 @@
+; ML-10 Simpson's Discrete Approximation
+;
+;  n    dx    i,fi   -> I
+
+; LBL A: enter number of delta intervals n (must be even number)
+; LBL B: enter delta x dx
+; LBL C: enter entries (starting with entry i = 0..n)
+;        number of samples = n+1 (y0, y1...yn), number of intervals = n
+; LBL D: calculate integral
+
+; Registers:
+;  H1 ... index of the entry
+;  H2 ... number of entries / 2 (loop counter)
+;  H3 ... delta x dx
+;  H4 ... result y accumulator, index of entered entry
+;  H5 ... number of entries (must be even number)
+;  H6 ... save last entry
+
+;  R10... entries y0..yn
+
+; LBL A: enter number of entries (must be even number)
+LBL A 
+	( IXI		; absolute value
+	HIR 05		; STO H5, number of steps
+	/ 2 ) HIR 02	; STO H2, number of steps / 2 (loop counter)
+	INV INT		; check fractional part
+	CP		; set reg T = 0
+	INV EQ EE	; if not 0, jump to error (must be even number)
+	HIR 15		; RCL H5, restore entered number
+	RTN
+
+; LBL B: delta x dx
+LBL B
+	HIR 03		; STO H3, delta x dx
+	RTN
+
+; LBL C: enter entries (starting with entry i = 0..n)
+LBL C
+	( HIR 06	; STO H6, save last entry
+	HIR 04		; STO H4, index of entered entry
+	+ 1 0 )		; starting with memory register 10
+	HIR 01		; STO H1, save index pointer
+
+LBL IXI
+	; display info about coefficient: " Enter a2 "
+	HIR 14		; RCL H4, prepare index
+	X/T		; save index into T register
+	5 OP 53 OP 01	; load text "  Enter" into register 1
+	8 9		; text 'y'
+	OP 54		; add index i to text
+	0 0 0 0 0 0	; add some spaces
+	OP 02		; save text into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+LBL +/-
+	HIR 16		; RCL H6, restore last number
+	RTN
+
+	; save new number
+	HIR 06		; STO H6, save entered number
+	HI* 01		; STO Ind H1, store one entry
+
+	; move to next entry
+	IF 94 05 SQR	; if H4 < H5 jump SQR, if current index i < number of entries, skip
+
+	; all done
+	PGM 03 SBR NOP	; display "Ready"
+	GTO +/-
+
+LBL SQR
+	HIR 71		; Inc H1, increment entry index
+	HIR 74		; Inc H4, increase index
+	GTO IXI
+
+; LBL D: calculate integral
+LBL D
+	; prepare counters and accumulator
+	( HIR 15 + 1 0 ) ; RCL H5, index of last entry (starting with R10, ending with R10+n)
+	HIR 01		; STO H1, prepare index of last entry
+	HI* 11		; RCL Ind H1, load last entry
+	HIR 04		; STO 04, store result y (initialize accumulator)
+LBL YX
+	HIR 81		; Dec H1, decrement current index
+
+	; add y to accumulator, weight 4
+	( HI* 11 * 4 )	; RCL Ind H1, get result * 4
+	HIR 34		; SUM H4, add y*4 to accumulator
+
+	HIR 81		; Dec H1, decrement current index
+
+	; loop counter
+	HIR 0F2 X2	; DJZ H2 X2, decrement H2 and jump to X2 if H2 is 0
+
+	; add y to accumulator, weight 2
+	( HI* 11 * 2 )	; RCL Ind H1, get result * 2
+ 	HIR 34		; SUM H4, add y*2 to accumulator
+
+	GTO YX		; next step of the loop
+
+LBL X2 ; calculate y at end
+	HI* 11		; RCL Ind H1, get result y0
+	HIR 34		; SUM H4, add y to accumulator
+	( HIR 13 / 3 )	; RCL H3, delta dx / 3
+	HIR 44		; Prd H4, accumulator * dx / 3
+	HIR 14		; RCL H4, get result
+	RTN
+
+LBL EE	; indicate error
+	CLR 1/X RTN

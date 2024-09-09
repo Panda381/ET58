@@ -1,0 +1,44 @@
+; ML-24 Unit conversions (1)
+;  cm->in  m->ft  m->yd  km->mi  n mi->mi
+;  in->cm  ft->m  yd->m  mi->km  mi->n mi
+
+; LBL A: inches to centimeters
+; LBL B: feet to meters
+; LBL C: yards to meters
+; LBL D: statute miles to kilometers
+; LBL E: statute miles to nautical miles (Int.)
+; LBL A': centimeters to inches
+; LBL B': meters to feet
+; LBL C': meters to yards
+; LBL D': kilometers to statute miles
+; LBL E': nautical miles (Int.) to statute miles
+
+; LBL A: inches to centimeters
+LBL A ( CE * 2 . 5 4 ) RTN
+
+; LBL B: feet to meters
+LBL B ( CE * . 3 0 4 8 ) RTN
+
+; LBL C: yards to meters
+LBL C ( CE * . 9 1 4 4 ) RTN
+
+; LBL D: statute miles to kilometers
+LBL D ( CE * 1 . 6 0 9 3 4 4 ) RTN
+
+; LBL E: statute miles to nautical miles (Int.)
+LBL E ( CE * . 8 6 8 9 7 6 2 4 ) RTN
+
+; LBL A': centimeters to inches
+LBL A' 1/X A 1/X RTN
+
+; LBL B': meters to feet
+LBL B' 1/X B 1/X RTN
+
+; LBL C': meters to yards
+LBL C' 1/X C 1/X RTN
+
+; LBL D': kilometers to statute miles
+LBL D' 1/X D 1/X RTN
+
+; LBL E': nautical miles (Int.) to statute miles
+LBL E' 1/X E 1/X RTN

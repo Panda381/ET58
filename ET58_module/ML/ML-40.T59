@@ -1,0 +1,63 @@
+; ML-40 (MU-21) Variable Arithmetic
+;  ->A   ->B   ->C   ->D   ->E
+;   A     B     C     D     E
+
+; LBL A..E: Recall variable A..E
+; LBL A'..E': Store variable A..E
+
+; Registers:
+;  H11 ... variable E
+;  H12 ... variable D
+;  H13 ... variable C
+;  H14 ... variable B
+;  H15 ... variable A
+
+; LBL A: Recall variable A
+LBL A
+	HIR 1F		; RCL H15, recall variable A
+	RTN
+
+; LBL B: Recall variable B
+LBL B
+	HIR 1E		; RCL H14, recall variable B
+	RTN
+
+; LBL C: Recall variable C
+LBL C
+	HIR 1D		; RCL H13, recall variable C
+	RTN
+
+; LBL D: Recall variable D
+LBL D
+	HIR 1C		; RCL H12, recall variable D
+	RTN
+
+; LBL E: Recall variable E
+LBL E
+	HIR 1B		; RCL H11, recall variable E
+	RTN
+
+; LBL A': Store variable A
+LBL A'
+	HIR 0F		; STO H15, store variable A
+	RTN
+
+; LBL B': Store variable B
+LBL B'
+	HIR 0E		; STO H14, store variable B
+	RTN
+
+; LBL C': Store variable C
+LBL C'
+	HIR 0D		; STO H13, store variable C
+	RTN
+
+; LBL D': Store variable D
+LBL D'
+	HIR 0C		; STO H12, store variable D
+	RTN
+
+; LBL E': Store variable E
+LBL E'
+	HIR 0B		; STO H11, store variable E
+	RTN

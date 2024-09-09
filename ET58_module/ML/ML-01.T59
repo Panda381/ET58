@@ -1,0 +1,169 @@
+; ML-01 Diagnostic
+;  Build Kex-Dec  Flags  Fill   Reset
+;  Font  Key-Hex   Stat  Clear  Diag
+
+; LBL A: Display font tables (control: SST/BST list through font pages, 0..4 load font 0..4, R/S stop program)
+; LBL A': Display build version of the calculator and checksum CRC
+; LBL B: Diplay HEX code of pressed key (except keys 2nd, GTO and R/S, stop program by R/S key)
+;	  Note: After break press DEC or D to normalize back to DEC mode, or some functions may work incorrectly.
+; LBL B': Diplay DEC code of pressed key (except keys 2nd, GTO and R/S, stop program by R/S key)
+; LBL C, LBL CLR: Clear statistic registers, X and T register
+; LBL C': Display state of all flags on 1st row (clear row by CLR).
+; LBL D, LBL CE: Clear and initialize
+; LBL D': Fill up all data registers by given number.
+; Lbl E, LBL =: Diagnostic
+; LBL E': Reset the calculator
+
+; Registers
+;  R01..R06 - statistic registers cleared
+;  H1 ... start index of current font page
+;  H2 ... counter of characters per page
+
+; LBL A: Display font tables (control: SST/BST browse 4 font pages, 0..4 load font 0..4, R/S stop program)
+LBL A
+	CLR HIR 01	; (STO H1) prepare index 0 of first page
+Lbl 0FE	; start of loop to display new font page
+	3 2 HIR 02	; (STO H2) prepare counter of characters per page
+	CP		; clear register T, position of first character
+	HIR 11		; (RCL H1) prepare first character to display
+Lbl 0FD ; start of loop to display one character
+	( Op 42		; display character X on position T
+	+ 1 )		; increase character index
+	( X/T + 1 ) X/T ; increase character position
+	HIR 0E2 0FD	; (DJNZ H2 0FD) loop, decrement H2 and jump if not 0
+Lbl 0FC ; start of loop to wait to key from keyboard
+	Op 40 X/T	; input key into register T
+	6 5 INV EQ 0FB	; check key SST
+	( ( 3 2		; increase page index
+	GTO 0FA		; display new page
+Lbl 0FB ; label if not SST
+	8 1 INV EQ 0F9	; check key BST
+	( ( 9 6		; decrease page index
+Lbl 0FA
+	+ HIR 11 )	; (RCL H1) shift page index
+	AND 1 2 7 ) HIR 01 ; (STO H1) limit page index
+	GTO 0FE		; display new page
+Lbl 0F9 ; label if not BST
+	4 INV GE 0FC	; check key 0..4
+	X/T OP 43	; load font
+	GTO 0FE		; display new page
+
+; LBL B: Diplay HEX code of pressed key (except keys 2nd, GTO and R/S, stop program by R/S key)
+LBL B
+	DEC		; switch to DEC display mode
+	2 5 5 X/T	; prepare invalid key 255 into register T
+	HEX		; switch to HEX display mode
+LBL 0F8 ; start of loop to wait for a key
+	OP 40		; load key from keyboard
+	EQ 0F8		; loop if no key
+	PAU		; pause to display key code
+	GTO 0F8		; get next character
+
+; LBL B': Diplay DEC code of pressed key (except keys 2nd, GTO and R/S, stop program by R/S key)
+LBL B'
+	DEC		; switch to DEC display mode
+	2 5 5 X/T	; prepare invalid key 255 into register T
+	DEC		; switch to DEC display mode
+	GTO 0F8		; get next character
+
+; LBL D, LBL CE: Clear and initialize
+LBL D
+LBL CE
+	DEG		; switch angle to degrees
+	DEC		; decimal mode
+	INV FIX		; switch rounding off
+	INV ENG		; disable ENG mode
+	OP 1D		; set format X + flags
+	OP 00		; clear print registers
+	OP 79		; clear all HIR registers
+
+; LBL C, LBL CLR: clear stat registers, X and T
+LBL C
+LBL CLR
+	CLR		; clear register X, clear operations
+	INV CMS		; clear STAT registers R01..R06, clear X and T
+	RTN
+
+; Lbl E, LBL =: Diagnostic
+LBL E
+LBL =
+	; clear and initialize
+	SBR CE		; clear and initialize
+
+	; prepare text "Diagnose OK"
+	2 OP 53 OP 01	; prepare text "Diagnose" into print register 1
+	0 . 5 OP 53 OP 02 ; prepare text "OK" into print register 2
+
+	; diagnose
+	OP 87		; check CRC of the ROM
+	INV EQ 1/X	; CRC error
+	5 X/T 3 0 P/R	; 2.5
+	STA INV P/R	; 10.625898050977
+	STA OP 12 DMS	; -30.156752312156 ... coefficients of linear regression (y = m*x + b, RegT = m, RegX = b)
+	STA OP 11 INV DMS ; 310.38073045416 ... variation
+	INV STA OP 14 	; 377.76051502109 ... calculate linear regression Y from X (y = m*x + b)
+	INV . 		; 377.76051502109 ... cut hidden digits
+	X/T
+	3 7 7 . 7 6 0 5 1 5 0 2 1 0 9
+	EQ WRT		; check result
+LBL 1/X
+	; error
+	1 . 2 OP 53 OP 02	; prepare text "ERROR" into print register 2
+	0 1/X  ; indicate error
+	GTO STA
+
+LBL WRT ; print text
+	1
+LBL STA
+	OP 1F	; set display mode Text
+	OP 1A	; print registers 1 and 2 to 1st row of display while stop
+	RTN
+
+; LBL C': Display state of all flags on 1st row (clear row by CLR).
+LBL C'
+	X/T 4 7 X/T	; prepare position of last character at 1st row
+	1 6 HIR 02 	; (STO H2) prepare number of bits into register H2
+	OP 86		; get all user flags
+	HIR 01		; (STO H1) save flags into register H1
+LBL 0ED
+	( HIR 11	; (RCL H1) get flags
+	AND 1 + 1 6 )	; get last bit as character 0 or 1
+	OP 42		; print character
+	( X/T - 1 ) X/T	; decrease character position
+	( HIR 11	; (RCL H1) get flags
+	RGH 1 ) Int	; shift flags right
+	HIR 01		; (STO H1) save new flags
+	HIR 0E2 0ED	; (DJNZ H2 0ED) decrement H2 and loop if not 0
+	OP 1F		; start text mode
+	RTN
+
+; LBL D': Fill up all data registers by given number.
+LBL D'
+	X/T		; save number to clear into T register
+	0 HIR 01	; (STO H1) prepare index of register
+	OP 85 HIR 02	; (STO H2) get number of data registers
+	X/T		; number to clear
+LBL 0EE
+	HI* 01		; (STO Ind H1) store sample into indexed H1
+	HIR 71		; (Inc H1) increase register index H1
+	HIR 0E2 0EE	; (DJNZ H2 0EE) decrement H2 and loop if not 0
+	RTN
+
+; LBL A': Display build version of the calculator and checksum CRC
+LBL A'
+	CLR
+	DEC
+	1 1 2 OP 53 2 6 OP 03 ; prepare text "CRC:" into print register 3
+	HEX		; switch to HEX mode
+	OP 87		; check CRC of the ROM
+	OP 0E		; set mode with text
+	OP 8A		; display build version
+	OP 8A		; display build version
+	DEC		; decimal mode
+	CLR
+	RTN
+
+; LBL E': Reset the calculator
+LBL E'
+	OP 8B		; reset calculator
+	RTN

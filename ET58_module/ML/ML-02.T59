@@ -1,0 +1,476 @@
+; ML-02 Determinant
+;  i->x  ->1/A  j->1/a        ->|A|.1/A
+;  n     j:a    ->|A|    i:b  ->x
+
+; LBL A: Enter matrix size n of square matrix (1..9)
+; LBL B: Enter column index j and then enter data, continue with R/S
+; LBL C: Calculate matrix determinant
+; LBL D: Enter index i of first entry of the vector, and then coefficients with R/S
+; LBL E: Solve system of linear equations
+; LBL A': Enter entry index i and read entries using R/S
+; LBL B': Matrix inversion (after calculate determinant with C, if result is not 0)
+; LBL C': Enter column index j and then read data of inverted matrix (after B')
+; LBL E': Calculate matrix determinant and then matrix inversion (steps C and B' together)
+
+; Registers:
+;  H1 ... memory index 1
+;  H2 ... memory index 2
+;  H3 ... memory index
+;  H4 ... memory index
+;  H5 ... counter
+;  H6 ... determinant
+;  H7 ... matrix size n (1..9)
+
+;  R10... matrix data
+
+; LBL A: Enter matrix size n of square matrix (1..9)
+LBL A
+	HIR 07 		; STO H7, matrix size n
+	RTN
+
+; LBL B: Enter column index j and then enter data (from 1st row), continue with R/S
+LBL B 
+	- X/T 1 = 	; column j - 1, save last entered value
+	* HIR 17	; RCL H7, matrix size n
+	+ 1 0 = HIR 01 	; STO H1, entry index = (j - 1)*n + 10
+	X/T		; restore last entered value
+LBL IXI		; loop to enter matrix data
+	RTN		; stop program and wait for R/S
+	HI* 01		; STO Ind H1, store matrix element into register indexed by H1
+	HIR 71		; INC H1, increase index
+	GTO IXI		; continue loop
+
+
+; LBL D': Get index of diagonale element i (1..n)
+LBL D'
+	+ ( CE 
+	- 1 ) 
+	* HIR 17 	; RCL H7, matrix size n
+	+ 9 = 		; index = i-1 + (i-1)*n + 10
+	RTN
+
+; Shift pointers H1 and H2 down, return matrix size n
+LBL 0FE
+	HIR 81		; Dec H1, decrease memory index 1 by 1 (next row)
+	HIR 17 		; RCL H7, get matrix size n
+	HIR 52 		; INV SUM H2, decrease memory index 2 by n (next column)
+	RTN
+
+; subtract H5 multiplies of elements H1*H2, direction up (m1 by rows, m2 by columns)
+LBL 0FD
+	HIR 0F5 0FC	; DJZ H5 0FC (INV DSZ H5 0FC), decrement H5 and jump to 0FC if H5 = 0
+	- HIR 71 	; Inc H1, increase memory index 1 by 1 (next row)
+	HIR 17 		; RCL H7, get matrix size n
+	HIR 32 		; SUM H2, increase memory index 2 by n (next column)
+	HI* 11 		; RCL Ind H1, get indirect memory from index 1
+	* HI* 12 	; RCL Ind H2, * indirect memory from index 2
+	GTO 0FD		; next entry
+LBL 0FC
+	RTN
+
+; subtract H5 multiplies of diagonale elements H1*H2, direction down (m1 by rows, m2 by columns)
+LBL 0FB
+	HIR 0F5 0FA	; DJZ H5 0FA (INV DSZ H5 0FA), decrement H5 and jump to 0FA if H5 = 0
+	- SBR 0FE	; Shift pointers H1 and H2 down, return matrix size n
+	HI* 11 		; RCL Ind H1, get indirect memory from index 1
+	* HI* 12 	; RCL Ind H2, * indirect memory from index 2
+	GTO 0FB
+LBL 0FA
+	RTN
+
+; LBL C: Calculate matrix determinant
+LBL C 
+	HIR 17 		; RCL H7, matrix size n
+	HIR 05 		; STO H5, set counter H5 to n
+	+ X2 		; + n^2
+	+ 9 = 
+	HIR 01 		; STO H1, entry index = n + n^2 + 10 - 1, last entry of control column
+
+LBL 0F7	; fill control column with values n,...2,1 = submatrix size
+	HIR 15 		; RCL H5, counter
+	HI* 01 		; STO Ind H1, store into memory index 1
+	HIR 81	 	; Dec H1, decrease memory index 1
+	HIR 0E5 0F7	; DJNZ H5 0F7 (DSZ 5 0F7), decrement H5 and jump to 0F7 if H5 not 0
+
+	; prepare counter of submatrix size
+	1 HIR 04 	; STO H4, set H4 to 1
+	HIR 06 		; STO H6, subresult accumulator, set to 1
+
+LBL 0F6
+	HIR 14 		; RCL H4, submatrix size
+	+ 9 = 
+	HIR 03 		; STO H3, index of submatrix column
+	- HIR 17 	; RCL H7, matrix size n
+	- 1 0 = 	; - submatrix counter
+	HIR 05 		; STO H5, counter
+
+	HIR 14 		; RCL H4, submatrix size
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 02		; STO H2, memory index 2
+
+	HI* 12 		; RCL Ind H2, memory index 2
+	IXI 
+	X/T 
+LBL 0F5
+	HIR 0F5 0F4	; DJZ H5 0F4 (INV DSZ 5 0F4), decrement H5 and jump to 0F4 if H5 = 0
+	HIR 72	 	; Inc H2, increase memory index 2
+	HI* 12 		; RCL Ind H2, memory index 2
+	IXI 
+	INV GE 0F5
+	X/T
+
+	HIR 17 + 	; RCL H7, matrix size n
+	HIR 15 + 	; RCL H5, counter
+	1 0 = 
+	HIR 03 		; STO H3
+	GTO 0F5
+
+LBL 0F4
+	HIR 13 		; RCL H3
+	X/T 
+	HIR 14 		; RCL H4
+	+ 9 = 
+	EQ 0F2
+	HIR 02 		; STO H2, memory index 2
+	1 +/- HIR 46 	; PRD H6, change sign of subresult
+	HIR 17 		; RCL H7, matrix size n
+	+ 1 = 
+	HIR 05		; STO H5, counter
+
+LBL 0F3 ; exchange entries *H2 and *H3 of one row of submatrix
+	HI* 12 		; RCL Ind H2, memory index 2
+	HI* 93 		; Exc Ind H3, memory index 3
+	HI* 02 		; STO Ind H2, memory index 2
+	HIR 17 		; RCL H7, matrix size n
+	HIR 32 		; SUM H2, shift memory index 2 to next row
+	HIR 33 		; SUM H3, shift memory index 3 to next row
+	HIR 0E5 0F3	; DJNZ H5 0F3 (DSZ 5 0F3), decrement H5 and jump to 0F3 if H5 not 0
+
+LBL 0F2
+	HIR 14 		; RCL H4
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 01		; STO H1, memory index 1
+	HI* 11 		; RCL Ind H1, memory index 1
+	HIR 46 		; Prd H6, subresult accumulator
+	CP 		; clear T
+	EQ 0EC		; subresult is 0, end of calculation
+	HIR 17 		; RCL H7, matrix size n
+	HIR 05 		; STO H5, counter
+
+LBL 0F1
+	HIR 14 		; RCL H4
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 02 		; STO H2, memory index 2
+	+ HIR 15 	; RCL H5, counter
+	- HIR 14	; RCL H4
+	= HIR 03 	; STO H3
+	HI* 13 		; RCL Ind H3
+	/ HI* 12 	; RCL Ind H2, memory index 2
+	= HIR 01 	; STO H1, memory index 1
+	HI* 03 		; STO Ind H3
+LBL 0F0
+	HIR 17 		; RCL H7, matrix size n
+	HIR 32 		; SUM H2, shift memory index 2 to next row
+	HIR 33 		; SUM H3, shift memory index 3 to next row
+	X2 + 1 0 =	; n^2 + 10 = index behind the matrix
+	X/T 
+	HIR 13 		; RCL H3, memory index 3
+	GE 0EF		; check overflow end of matrix
+	HIR 11 +/- 	; RCL H1, memory index 1
+	* HI* 12 	; RCL Ind H2, memory index 2
+	= HI* 33 	; SUM Ind H3
+	GTO 0F0
+	
+LBL 0EF
+	HIR 85 		; Dec H5, counter
+	HIR 15 		; RCL H5, counter
+	X/T 	
+	HIR 14 		; RCL H4
+	EQ 0EE
+	GTO 0F1
+
+LBL 0EE
+	HIR 74 		; Inc H4
+	HIR 17 		; RCL H7, matrix size n
+	X/T 
+	HIR 14 		; RCL H4
+	EQ 0ED
+	GTO 0F6
+
+LBL 0ED ; multiply last submatrix by diagonale element
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 01 		; STO H1, memory index 1
+	HI* 11 		; RCL Ind H1, memory index 1
+LBL 0EC
+	HIR 46 		; Prd H6
+	HIR 16 		; RCL H6
+	RTN
+
+; LBL D: Enter index i of first entry of the vector, and then coefficients with R/S
+LBL D 
+	HIR 05 		; STO H5, counter
+LBL 0EB
+	RTN
+
+	HIR 03 		; STO H3
+	HIR 17 		; RCL H7, matrix size n
+	X2 		; n^2
+	+ 9 = 
+	HIR 01 		; STO H1, memory index 1
+	HIR 15 		; RCL H5, counter
+	X/T 
+	HIR 17 		; RCL H7, matrix size n
+	INV GE 0EB
+LBL 0E9
+	HIR 71		; Inc H1, memory index 1
+	HI* 11 		; RCL Ind H1, memory index 1
+	INV EQ 0E9
+	HIR 17 		; RCL H7, matrix size n
+	HIR 31 		; SUM H1, memory index 1
+	HIR 75 		; Inc H5, counter
+	HIR 13 		; RCL H3
+	HI* 01 		; STO Ind H1, memory index 1
+	GTO 0EB
+
+; LBL E: Solve system of linear equations
+LBL E
+	CLR
+	1 HIR 04 	; STO H4
+LBL 0E7
+	HIR 17 		; RCL H7, matrix size n
+	+ X2 
+	+ 9 = 
+	HIR 01 		; STO H1, memory index 1
+	HIR 14 		; RCL H4
+	HIR 05 		; STO H5, counter
+	- HIR 17 + 9 =	; RCL H7, matrix size n
+	HIR 02 		; STO H2, memory index 2
+	0 SBR 0FD	; subtract H5 multiplies of diagonale elements H1*H2, direction up
+	+ HIR 71 	; Inc H1, memory index 1
+	HI* 11 = 	; RCL Ind H1, memory index 1
+	HI* 01 		; STO Ind H1, memory index 1
+	HIR 74 		; Inc H4
+	HIR 14 		; RCL H4
+	X/T 
+	HIR 17		; RCL H7, matrix size n
+	GE 0E7
+	1 HIR 04 
+LBL 0E6
+	9 + 
+	( HIR 17 + 1 ) 	; RCL H7, matrix size n
+	X2 = 
+	HIR 01 		; STO H1, memory index 1
+	- HIR 17 	; RCL H7, matrix size n
+	- HIR 14 	; RCL H4
+	HIR 05		; STO H5, counter
+	= HIR 02 	; STO H2, memory index 2
+	0 SBR 0FB	; subtract H5 multiplies of diagonale elements H1*H2, direction down
+	+ SBR 0FE	; Shift pointers H1 and H2 down, return matrix size n
+	HI* 11 = 	; RCL Ind H1, memory index 1
+	/ HI* 12 	; RCL Ind H2, memory index 2
+	= HI* 01 	; STO Ind H1, memory index 1
+	HIR 74		; Inc H4
+	HIR 14 		; RCL H4
+	X/T
+	HIR 17 		; RCL H7, matrix size n
+	GE 0E6
+	1 X/T X/T
+	RTN
+
+; LBL A': Enter entry index i and read entries using R/S
+LBL A' 
+	+ X/T 
+	9
+	+ HIR 17 	; RCL H7, matrix size n
+	* ( CE + 1 ) 	
+	= HIR 01 	; STO H1, memory index 1
+	X/T 
+LBL 0E5
+	RTN
+	HI* 11 		; RCL Ind H1, memory index 1
+	HIR 71	 	; Inc H1, memory index 1
+	GTO 0E5
+
+; LBL B': Matrix inversion (after calculate determinant with C if result is not 0)
+LBL B' 
+	CLR
+	1 HIR 04 	; STO H4
+LBL 0E4
+	HIR 14 		; RCL H4
+	D'  		; Get index of diagonale element i (1..n)
+;LBL 0E3
+	HIR 01 		; STO H1, memory index 1
+	HI* 11 		; RCL Ind H1, memory index 1
+	1/X 
+	HI* 01 		; STO Ind H1, memory index 1
+	HIR 74	 	; Inc H4
+	HIR 14		; RCL H4
+	X/T 
+	HIR 17 		; RCL H7, matrix size n
+	GE 0E4
+	HIR 84	 	; Dec H4
+	1 HIR 03 	; STO H3
+LBL 0E2
+	HIR 14 		; RCL H4
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 01 		; STO H1, memory index 1
+	- HIR 13 	; RCL H3
+	HIR 05		; STO H5, counter
+	= HIR 02 	; STO H2, memory index 2
+	HI* 11 		; RCL Ind H1, memory index 1
+	* HI* 12 	; RCL Ind H2, memory index 2
+	+/- SBR 0FB	; subtract H5 multiplies of diagonale elements H1*H2, direction down
+	+ 0 =	 	; '+ 0' for case if loop = 0 (alone '=' would repeat last operation)
+	* SBR 0FE	; Shift pointers H1 and H2 down, return matrix size n
+	HI* 12 		; RCL Ind H2, memory index 2
+	= HI* 01	; STO Ind H1, memory index 1
+	HIR 73	 	; Inc H3
+	HIR 14 		; RCL H4
+	X/T 
+	HIR 13 		; RCL H3
+	INV EQ 0E2
+	1 HIR 03 	; STO H3
+	HIR 84 		; Dec H4
+	HIR 14 		; RCL H4
+	X/T
+	1 
+	INV EQ 0E2
+LBL 0E1
+	HIR 14 		; RCL H4
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 01 		; STO H1, memory index 1
+	+ HIR 13 	; RCL H3
+	HIR 05 = 	; STO H5, counter
+	HIR 02 		; STO H2, memory index 2
+	HI* 12 		; RCL Ind H2, memory index 2
+	+/- 
+	SBR 0FD		; subtract H5 multiplies of diagonale elements H1*H2, direction up
+	* 
+	1 HIR 31 	; SUM H1, memory index 1
+	= HI* 01 	; STO Ind H1, memory index 1
+	HIR 73	 	; Inc H3
+	HIR 13 		; RCL H3
+	X/T 
+	HIR 17 		; RCL H7, matrix size n
+	- HIR 14 = 	; RCL H4
+	GE 0E1
+	1 HIR 34 	; SUM H4
+	HIR 03 		; STO H3
+	HIR 17 		; RCL H7, matrix size n
+	X/T 
+	HIR 14 		; RCL H4
+	INV EQ 0E1
+	1 HIR 04 	; STO H4
+LBL 0E0
+	HIR 14 		; RCL H4
+	HIR 05 		; STO H5, counter
+	D'		; Get index of diagonale element i (1..n)
+	HIR 03 		; STO H3
+LBL 0DF
+	HIR 15 		; RCL H5, counter
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 01 		; STO H1, memory index 1
+	HIR 13 		; RCL H3
+	HIR 02 		; STO H2, memory index 2
+	HIR 17 		; RCL H7, matrix size n
+	- HIR 15 	; RCL H5, counter
+	+ 1 = 
+	HIR 95 		; EXC H5, counter
+	X/T
+	HI* 13 		; RCL Ind H3
+	+/- 
+	SBR 0FD		; subtract H5 multiplies of diagonale elements H1*H2, direction up
+	+ 0 = +/- 	; '+ 0' for case if loop = 0 (alone '=' would repeat last operation)
+	HI* 03 		; STO Ind H3
+	HIR 17 		; RCL H7, matrix size n
+	HIR 33 		; SUM H3
+	X/T 
+	+ 1 = 
+	HIR 05 		; STO H5, counter
+	X/T
+	GE 0DF
+	X/T 
+	HIR 14 		; RCL H4
+	EQ 0DD
+	+ 1 = 
+	HIR 05 		; STO H5, counter
+	HIR 14 		; RCL H4
+	D' 		; Get index of diagonale element i (1..n)
+	+ 1 
+	= HIR 03 	; STO H3
+LBL 0DE
+	HIR 15		; RCL H5, counter
+	D' 		; Get index of diagonale element i (1..n)
+	HIR 02 		; STO H2, memory index 2
+	HIR 13 		; RCL H3
+	HIR 01 		; STO H1, memory index 1
+	HIR 17 - 	; RCL H7, matrix size n
+	HIR 15 + 	; RCL H5, counter
+	1 = 
+	HIR 95 		; EXC H5, counter
+	X/T 
+	HI* 11 		; RCL Ind H1, memory index 1
+	* HI* 12	; RCL Ind H2, memory index 2
+	+/- 
+	SBR 0FD		; subtract H5 multiplies of diagonale elements H1*H2, direction up
+	+ 0 = +/- 	; '+ 0' for case if loop = 0 (alone '=' would repeat last operation)
+	HI* 03 		; STO Ind H3
+	1 HIR 33 	; SUM H3
+	+ X/T = 
+	HIR 05 		; STO H5, counter
+	X/T 
+	HIR 17 		; RCL H7, matrix size n
+	GE 0DE
+	HIR 74 		; Inc H4
+	GTO 0E0
+LBL 0DD
+	1 X/T X/T
+LBL 0DC
+	RTN
+
+;  C': Enter column index j and then read data of inverted matrix (after B')
+LBL C' 
+	HIR 03 		; STO H3
+	X/T 
+	HIR 17 		; RCL H7, matrix size n
+	INV GE 0DC
+	+ HIR 05 	; STO H5, counter
+	X2 + 9 = 
+	HIR 01 		; STO H1, memory index 1
+	0 HIR 04 	; STO H4
+LBL 0DA
+	HI* 11		; RCL Ind H1, memory index 1
+	EQ 0D9
+	HIR 81 		; Dec H1, decrement memory index 1
+	HIR 0E5 0DA	; DJNZ H5 0DA (DSZ 5 0DA), decrement H5 and jump to 0DA if H5 not 0
+LBL 0D9
+	HIR 15 		; RCL H5, counter
+	- 1 = 
+	* HIR 17 	; RCL H7, matrix size n
+	+ 9 = 
+	HIR 01		; STO H1, memory index 1
+	X/T 	
+	RTN
+LBL 0D8
+	HIR 71	 	; Inc H1, increase memory index 1
+	HIR 74 		; Inc H4, increase memory index 4
+	HI* 11 		; RCL Ind H1, memory index 1
+	RTN
+;LBL 0D7
+	HIR 14 		; RCL H4
+	X/T 
+	HIR 17 		; RCL H7, matrix size n
+	INV EQ 0D8
+	1 + HIR 13 = 	; RCL H3
+	C' 
+	GTO 0D8
+
+; LBL E': Calculate matrix determinant and then matrix inversion (steps C and B' together)
+LBL E' 
+	C 
+	CP 
+	EQ 0D6
+	B' 
+LBL 0D6
+	HIR 16 		; RCL H6
+	RTN

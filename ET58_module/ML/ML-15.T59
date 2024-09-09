@@ -1,0 +1,53 @@
+; ML-15 Random Number Generator
+;
+;  A,x   B,s   No(A,B) Int(A,B)  No(x,s)
+
+; LBL A: enter lower limit A or mean x
+; LBL B: enter upper limit B or deviation s
+; LBL C: generate random number in interval A..B (A including, B excluding)
+; LBL D: generate integral number in interval A..B (A including, B excluding)
+; LBL E: generate random number with mean x and deviation s
+
+; Registers:
+;  H1 ... lower limit A or mean x
+;  H2 ... upper limit B or deviation s
+
+; LBL A: enter lower limit A or mean x
+LBL A
+	HIR 01		; STO H1, lower limit A or mean x
+	RTN
+
+; LBL B: enter upper limit B or deviation s
+LBL B
+	HIR 02		; STO H2, upper limit B or deviation s
+	RTN
+
+; LBL C: generate random number in interval A..B (A including, B excluding)
+LBL C
+	( RND		; generate random number 0..1
+	* ( HIR 12	; RCL H2, upper limit
+	- HIR 11 )	; - RCL H1, lower limit
+	+ HIR 11 )	; + RCL H1, lower limit
+	RTN
+
+; LBL D: generate integral number in interval A..B (A including, B excluding)
+LBL D
+	C		; generate random number in interval A..C
+	INT		; integer
+	RTN
+
+; LBL E: generate random number with mean x and deviation s
+;  Marsaglia polar method to generate number with standard normal distribution
+;    y = s * sqrt(-2*ln(rnd1))*cos(2*pi*rnd2) + x
+LBL E
+	( ( RND		; random number 0..1
+	* 2 * PI )	; * 2 * PI
+	OP 73		; convert from radians
+	COS		; cosinus
+	* ( RND		; random number 0..1
+	LNX		; logarithm
+	* 2 +/- )	; * -2
+	SQR		; square root
+	* HIR 12	; RCL H2, * deviation s
+	+ HIR 11 )	; RCL H1, + mean x
+	RTN

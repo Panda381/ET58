@@ -1,0 +1,69 @@
+; ML-30 (EE-12) Series/Parallel impedance conversion
+; ->Rs  ->Xs  ->Rp  -> Xp
+;  Rs    Xs    Rp    Xp
+
+; LBL A: Enter series resistance Rs in ohms
+; LBL A': Get series resistance Rs (Rp and Xp needed)
+; LBL B: Enter series reactance Xs in ohms
+; LBL B': Get series reactance Xs (Rp and Xp needed)
+; LBL C: Enter parallel resistance Rp in ohms
+; LBL C': Get parallel resistance Rp (Rs and Xs needed)
+; LBL D: Enter parallel reactance Xp in ohms
+; LBL D': Get parallel reactance Xp (Rs and Xs needed)
+
+; Registers:
+;  H1 ... series resistance Rs
+;  H2 ... series reactance Xs
+;  H3 ... parallel resistance Rp
+;  H4 ... parallel reactance Xp
+
+; LBL A': Get series resistance Rs (Rp and Xp needed)
+;  Rs = 1 / (1/Rp + Rp/Xp^2)
+LBL A'
+	( HIR 13 1/X	; RCL H3, get parallel resistance Rp
+	+ HIR 13	; RCL H3, get parallel resistance Rp
+	/ HIR 14 X2 )	; RCL H4, get parallel reactance Xp
+	1/X
+
+; LBL A: Enter series resistance Rs in ohms
+LBL A
+	HIR 01		; STO H1, set series resistance Rs
+	RTN
+
+; LBL B': Get series reactance Xs (Rp and Xp needed)
+;  Xs = Rs*Rp/Xp
+LBL B'
+	A'		; get series resistance Rs
+	( CE
+	* HIR 13	; RCL H3, get parallel resistance Rp
+	/ HIR 14 )	; RCL H4, get parallel reactance Xp
+
+; LBL B: Enter series reactance Xs in ohms
+LBL B
+	HIR 02		; STO H2, set series reactance Xs
+	RTN
+
+; LBL C': Get parallel resistance Rp (Rs and Xs needed)
+;  Rp = Rs + Xs^2 / Rs
+LBL C'
+	( HIR 11	; RCL H1, get series resistance Rs
+	+ HIR 12 X2	; RCL H2, get series reactance Xs
+	/ HIR 11 )	; RCL H1, get series resistance Rs
+
+; LBL C: Enter parallel resistance Rp in ohms
+LBL C
+	HIR 03		; STO H3, set parallel resistance Rp
+	RTN
+
+; LBL D': Get parallel reactance Xp (Rs and Xs needed)
+;  Xp = Rp*Rs/Xs
+LBL D'
+	C'		; get parallel resistance Rp
+	( CE
+	* HIR 11	; RCL H1, get series resistance Rs
+	/ HIR 12 )	; RCL H2, get series reactance Xs
+
+; LBL D: Enter parallel reactance Xp in ohms
+LBL D
+	HIR 04		; STO H4, set parallel reactance Xp
+	RTN

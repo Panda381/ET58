@@ -1,0 +1,90 @@
+; ML-29 (EE-11) Reactance Chart
+; ->f  ->L  ->C  XL->L XC->C
+;  f    L    C   ->XL  ->XC
+
+; LBL A: Enter frequency f in Hz
+; LBL A': Get resonant frequency f (L and C needed)
+; LBL B: Enter inductance L in henrys
+; LBL B': Get inductance L (f and C needed)
+; LBL C: Enter capacitance C in farads
+; LBL C': Get capacitance C (f and L needed)
+; LBL D: Get inductive reactance XL in ohms (f and L needed)
+; LBL D': Enter inductive reactance XL and get inductance L (f needed)
+; LBL E: Get capacitive reactance XC in ohms (f and C needed)
+; LBL E': Enter capacitive reactance XC and get capacitance C (f needed)
+
+; Registers:
+;  H1 ... frequency f in Hz
+;  H2 ... inductance L in henrys
+;  H3 ... capacitance C in farads
+
+; LBL A': Get resonant frequency f (need L and C)
+;  f = 1 / (2*pi*sqrt(L*C))
+LBL A'
+	( 2 * PI *
+	( HIR 12	; RCL H2, get inductance L
+	* HIR 13 )	; RCL H3, get capacitance C
+	SQR ) 1/X
+
+; LBL A: Enter frequency f in Hz
+LBL A
+	HIR 01		; STO H1, set frequency f in Hz
+	RTN
+
+; LBL B': Get inductance L (need f and C)
+;  L = 1 / ((2*pi*f)^2 * C)
+LBL B'
+	( ( 2 * PI *
+	HIR 11 ) X2	; RCL H1, get frequency f
+	* HIR 13 )	; RCL H3, get capacitance C
+	1/X
+
+; LBL B: Enter inductance L in henrys
+LBL B
+	HIR 02		; STO H2, set inductance L in henrys
+	RTN
+
+; LBL C': Get capacitance C (need f and L)
+;  C = 1 / ((2*pi*f)^2 * L)
+LBL C'
+	( ( 2 * PI *
+	HIR 11 ) X2	; RCL H1, get frequency f
+	* HIR 12 )	; RCL H2, get inductance L
+	1/X
+
+; LBL C: Enter capacitance C in farads
+LBL C
+	HIR 03		; STO H3, set capacitance C in farads
+	RTN
+
+; LBL D: Get inductive reactance XL in ohms (need f and L)
+;  XL = 2*pi*f*L
+LBL D
+	( 2 * PI
+	* HIR 11	; RCL H1, get frequency f
+	* HIR 12 )	; RCL H2, get inductance L
+	RTN
+
+; LBL D': Enter inductive reactance XL and get inductance L (need f)
+;  L = XL / (2*pi*f)
+LBL D'
+	( CE / ( 2 * PI
+	* HIR 11 ) )	; RCL H1, get frequency f
+	GTO B		; set inductance
+
+; LBL E: Get capacitive reactance XC in ohms (need f and C)
+;  XC = 1/(2*pi*f*C)
+LBL E
+	( 2 * PI
+	* HIR 11	; RCL H1, get frequency f
+	* HIR 13 )	; RCL H3, get capacitance C
+	1/X
+	RTN
+
+; LBL E': Enter capacitive reactance XC and get capacitance C (need f)
+;  C = 1 / (2*pi*f*XC)
+LBL E'
+	( CE * 2 * PI
+	* HIR 11 )	; RCL H1, get frequency f
+	1/X
+	GTO C		; set capacitance

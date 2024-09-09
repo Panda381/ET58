@@ -1,0 +1,98 @@
+; ML-22 Checking/Saving Account
+;  Checking  Savings   I%/Yr  Periods/Yr
+;  Balance   Deposit   Withdr No.Period   New Bal.
+
+; LBL A: Get current checking or savings balance
+; LBL B: Enter deposit amount (increase balance)
+; LBL C: Enter check amount (decrease balance)
+; LBL D: Enter number of periods N, update new savings balance
+; LBL E: Save new checking or savings balance
+; LBL A': select checking balance
+; LBL B': select savings balance
+; LBL C': Enter annual interest rate I (in %)
+; LBL D': Enter compounding periods per year p
+
+; Registers
+;  H1 ... number of periods N
+;  H2 ... interest rate I (% per period)
+;  H3 ... present value PV, or payment/period PMT
+;  H4 ... future value FV
+;  H5 ... Saldo-Girokonto (checking balance)
+;  H6 ... Saldo-Sparkonto (savings balance)
+;  H7 ... interest rate I in %
+;  H8 ... interest rate as decimal number i (i = I * 100)
+;  H9 ... interest rate as decimal number i + 1
+
+; flag 0 ... use savings balance (or checking balance otherwise)
+
+; LBL A: Get current checking or savings balance
+LBL A 
+	E' 
+	RTN
+
+; LBL C: Enter check amount (decrease balance)
+LBL C
+	+/- 		; decrease balance
+
+; LBL B: Enter deposit amount (increase balance)
+LBL B
+	( CE + 		; amount
+	E' ) 		; + current balance
+	E		; save new balance
+	RTN
+
+; LBL D: Enter number of periods N, update new savings balance
+LBL D 
+	CP 		; clear T
+	PGM 18 A 	; enter number of periods N
+	HIR 16		; RCL H6, savings balance
+	HIR 03 		; STO H3, present value PV
+	CP 		; clear T
+	PGM 18 SBR CE 	; calculate future value FV
+	HIR 06		; STO H6, savings balance
+	RTN
+
+; LBL E: Save new checking or savings balance
+LBL E 
+	IFF 0 SQR 	; use savings balance?
+	HIR 05 		; STO H5, set checking balance
+	RTN
+
+LBL SQR 
+	HIR 06		; STO H6, set savings balance
+	RTN
+
+; LBL A': select checking balance
+LBL A'
+	INV STF 0 	; select checking balance
+	FIX 2 		; fix to 2 decimal places
+	RTN
+
+; LBL B': select savings balance
+LBL B' 
+	STF 0 		; select savings balance
+	FIX 2 		; fix to 2 decimal places
+	RTN
+
+; LBL C': Enter annual interest rate I (in %)
+LBL C'
+	HIR 07		; STO H7, interest rate I in %
+	RTN
+
+; LBL D': Enter compounding periods per year p
+LBL D' 
+	( 1/X 		; 1/number of periods
+	* HIR 17 ) 	; RCL H7, interest rate I in %
+	CP 		; clear T
+	PGM 18 B 	; Enter interest rate I (% per period)
+	RTN
+
+; LBL E': Get current checking or savings balance
+LBL E'
+	IFF 0 YX	; if flag 0 is set (=use savings balance), jump to YX
+	HIR 15		; RCL H5, get checking balance
+	RTN
+
+LBL YX
+	HIR 16		; RCL H6, get savings balance
+	RTN

@@ -1,0 +1,6 @@
+201005 ... start version
+201025 ... correction of error "50 n!" and "1e60 Int"
+210212 ... add CalcDel underflow check, correct CalcSin ret error
+221129 ... better treatment of processor lock during battery handling, display logo
+240909 ... release source code to open source domain
+

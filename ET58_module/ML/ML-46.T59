@@ -1,0 +1,127 @@
+; ML-46 (LE-13) Craps Game
+;  ?Last ?Bet
+;  Roll   Bet   Start  ?Bank  Dice
+
+; Rules:
+; - Two dices are rolled..
+; - First roll of 7 or 11 wins.
+; - First roll of 2, 3 or 12 loses.
+; - Next roll of 7 loses.
+; - Next roll equal to first roll wins.
+; Dices are represented in form M.N (numbers on dices 1..6)
+
+; LBL A: Roll dices.
+; LBL A': Display last roll.
+; LBL B: Enter bet. If not entered, last bet will be used.
+; LBL B': Display bet.
+; LBL C: Start new game with new bankroll '1000'.
+; LBL D: Display bankroll.
+; LBL E: Roll one dice 1..6.
+
+; Registers:
+;  H1 ... Bankroll
+;  H2 ... Bet
+;  H3 ... Roll dices M.N
+;  H4 ... Roll dices M+N of 1st roll
+;  H5 ... Roll dices M+N of next roll
+
+; LBL E: Roll one dice 1..6.
+LBL E
+	( RND * 6 + 1 ) INT
+	RTN
+
+; LBL A: Roll dices.
+LBL A 
+	IFF 01 INV 	; jump if next roll
+; 1st roll
+	; roll 2 dices -> M+N, M.N
+	E 		; Generate next dice 1..6
+	( HIR 04 	; STO H4, Roll dices M+N of 1st roll
+	+ E 		; Generate next dice 1..6
+	HIR 34 		; SUM H4, Roll dices M+N of 1st roll
+	/ 1 0 ) 
+	HIR 03 		; STO H3, Roll dices M.N
+
+	; check roll
+	HIR 14		; RCL H4, Roll dices M+N of 1st roll
+	X/T 3		; check 3
+	GE LNX 		; 3 >= M+N (=2 or 3), loss, Sub bet from bankroll
+	7
+	EQ CE 		; M+N = 7, win, Add bet to bankroll
+	1 1
+	EQ CE 		; M+N = 11, win, Add bet to bankroll
+	1 2
+	EQ LNX 		; M+N = 12, loss, Sub bet from bankroll
+
+	STF 01 		; set flag of next roll
+	3 7		; text "First"
+	GTO SQR		; display current bankroll
+
+; next roll
+LBL INV 
+	; roll 2 dices -> M+N, M.N
+	E 		; Generate next dice 1..6
+	( HIR 05 	; STO H5, Roll dices M+N of next roll
+	+ E		; Generate next dice 1..6
+	HIR 35 		; SUM H5, Roll dices M+N of next roll
+	/ 1 0 ) 
+	HIR 03 		; STO H3, Roll dices M.N
+
+	; check roll
+	HIR 15	 	; RCL H5, Roll dices M+N of next roll
+	X/T 7
+	EQ LNX 		; M+N = 7, loss, Sub bet from bankroll
+	HIR 14	 	; RCL H4, Roll dices M+N of 1st roll
+	EQ CE 		; this roll = first roll, win, Add bet to bankroll
+LBL SIN
+	7 0		; text 'Bankroll'
+	GTO SQR		; display current bankroll
+
+; LOSS, Sub bet from bankroll
+LBL LNX 
+	INV STF 01 	; new game
+	HIR 12 		; RCL H2, Bet
+	HIR 51		; INV SUM H1, sub from Bankroll
+	6 9		; text 'Loss'
+	GTO SQR
+
+; WIN, Add bet to bankroll
+LBL CE 
+	INV STF 01 	; new game
+	HIR 12 		; RCL H2, Bet
+	HIR 31		; SUM H1, add to Bankroll
+	6 8		; text 'Win'
+LBL SQR
+	; display "Win 12345"
+	OP 53		; load text 'Loss' or 'Win'
+	OP 01		; print into print register 1
+; LBL A': Display last roll.
+LBL A' 
+	HIR 11		; RCL H1, Bankroll
+	OP 1F		; set display mode Text
+	OP 1B		; print registers 1 + number X to 1st row of display while stop
+	HIR 13 		; RCL H3, Roll dices M.N
+	RTN 
+
+; LBL B: Enter bet. If not entered, last bet will be used.
+LBL B 
+	HIR 02 		; STO H2, Bet
+	RTN
+
+; LBL B': Display bet.
+LBL B'
+	HIR 12		; RCL H2, Bet
+	RTN
+
+; LBL C: Start new game with new bankroll '1000'.
+LBL C
+	INV STF 01	; flag - 1st roll
+	1 0 0 0 HIR 01 	; STO H1, Bankroll
+	SBR SIN		; display current bankroll
+	0
+	RTN 
+
+; LBL D: Display bankroll.
+LBL D
+	HIR 11		; RCL H1, Bankroll
+	RTN

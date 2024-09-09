@@ -1,0 +1,55 @@
+; ML-17 Moving Average
+;
+;  n    m-AVG
+
+; LBL A: enter number of samples n (= length of sample "window")
+; LBL B: enter next sample and calculate moving average
+
+; Registers:
+;  H1 ... index to store sample (R10..)
+;  H2 ... number of samples n
+;  H3 ... current number of samples (limited to n)
+;  H4 ... accumulator of sum of samples
+;  H5 ... relative index of sample (0..n-1)
+
+;  R10... samples
+
+; LBL A: enter number of samples n (= length of sample "window")
+LBL A
+	HIR 02		; STO H2, number of samples n
+	1 0 HIR 01	; STO H1, index to store sample = R10
+	0 HIR 03	; STO H3, current number of samples = 0
+	HIR 04		; STO H4, accumulator of sum of samples = 0
+	HIR 05		; STO H5, relative index of sample
+	HIR 12		; RCL H2, restore number of samples n
+	RTN
+
+; LBL B: enter next sample and calculate moving average
+LBL B
+	; check number of samples
+	IF 0E3 02 IFF	; if current number of samples >= number of samples n, jump IFF
+	; not enough samples yet
+	HIR 73		; Inc H3, increase current number of samples
+LBL AVR
+	HI* 01		; STO Ind H1, save sample
+	HIR 71		; Inc H1, increase index of sample
+	HIR 75		; Inc H5, increase relative index
+	HIR 34		; SUM H4, add sample to accumulator
+	; average
+	( HIR 14	; RCL H4, accumulator
+	/ HIR 13 )	; RCL H3, current number of samples
+	RTN
+
+	; already enough samples
+LBL IFF
+	X/T		; save sample -> T
+	; reset index to 1 0
+	IF 95 02 STF	; if relative index < number of samples, skip
+	1 0 HIR 01	; STO H1, reset index to R10
+	0 HIR 05	; STO H5, reset relative index to 0
+LBL STF
+	; subtract old value from accumulator
+	HI* 11		; RCL Ind H1, load old sample
+	HIR 54		; INV SUM H4, subtract old sample from accumulator
+	X/T		; restore sample from T
+	GTO AVR		; average

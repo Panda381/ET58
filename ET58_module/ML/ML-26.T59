@@ -1,0 +1,97 @@
+; ML-26 Fraction Arithmetic
+;    INIT   a/b->d  X-Y  X:Y  DEL
+;    ENTER  d->a/b  X+Y  XxY  X<>Y
+
+; LBL A: enter number into stack (to use: enter numerator 'a', press X/T, enter denominator 'b', press A)
+; LBL A': initialize stack to memory registers R10..R29
+; LBL B: convert decimal number to fraction
+; LBL B': convert fraction to decimal number
+; LBL C: add numbers X + Y
+; LBL C': subtract numbery X - Y
+; LBL D: multiply numbers X x Y
+; LBL D': divide numbers X : Y
+; LBL E: exchange last 2 top numbers
+; LBL E': delete top number
+; LBL +/-: negate
+; LBL 1/X: reciprocal value of X
+
+; To use:
+;  1) initialize stack A' (uses variables R10..R29)
+;  2) to enter X: enter numerator 'a', press X/T, enter denominator 'b', press A
+;  3) to enter Y: repeat step 2)
+;  4) to add X + Y: press C, result will be shown, 1st row is numerator 'a', 2nd row is denominator 'b'
+
+; Display format:
+; - 1st row reg. X numerator 'a', 2nd row reg. T denominator 'b'
+
+; Registers:
+;  R10..R29 stack of 10 fraction numbers
+
+; LBL 1/x: Reciprocal value
+LBL 1/X
+	OP 58	; load result
+	OP 59	; delete number
+	X/T	; exchange fraction parts
+
+; LBL A: Enter number into stack (enter numerator 'a', press X/T, enter denominator 'b', press A)
+LBL A
+	OP 57	; store number to the stack
+	RTN
+
+; LBL A': Initialize stack of fraction numbers
+LBL A'
+	PGM 04 A'
+	RTN
+
+;  B: convert decimal number to fraction
+LBL B
+	OP 7A	; convert decimal number to fraction number
+	OP 1E	; set format X + T
+	RTN
+
+;  B': convert fraction to decimal number
+LBL B'
+	OP 7B	; convert fraction number to decimal number
+	OP 1D	; set format X + flags
+	RTN
+
+; LBL C: Add numbers X + Y
+LBL C
+	OP 7C	; add numbers
+LBL =
+	OP 58	; load result
+	RTN
+
+; LBL C': Subtract numbers X - Y
+LBL C'
+	OP 7D	; subtract numbers
+	GTO =
+
+; LBL D: Multiply numbers X * Y
+LBL D
+	OP 7E	; multiply numbers
+	GTO =
+
+; LBL D': Divide numbers X / Y
+LBL D'
+	OP 7F	; divide numbers
+	GTO =
+
+; LBL E: Exchange numbers
+LBL E
+	OP 5A	; exchange numbers
+	GTO =
+
+; SBR +/-: negate
+LBL +/-
+	OP 58	; load result
+	OP 59	; delete number
+	X/T
+	+/-	; negate
+	X/T
+	GTO A	; save new number
+
+;  E': delete top number
+LBL E'
+	OP 59	; delete number
+	RTN

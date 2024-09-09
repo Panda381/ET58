@@ -1,0 +1,106 @@
+; ML-33 (EE-15) Convolution
+;
+;  n0    dt  ->y(t)
+
+; To use, first enter x(t) input function with LBL A' into main program,
+; and enter h(t) response function with LBL B' into main program.
+; Do not use '=' or 'CLR' keys.
+
+; LBL A: Enter number of panels n0 in each dt
+; LBL B: Enter time increment dt
+; LBL C: Execute, continue with R/S
+
+; Registers:
+;  H1 ... sub-time loop counter
+;  H2 ... number of panels n0 in each dt
+;  H4 ... current time t
+;  H5 ... time increment dt
+;  H6 ... current sub-time ts
+;  H7 ... time interval in panel ddt (=dt/n0)
+;  H8 ... result y(t)
+;  H9 ... number of sub-time steps
+
+; LBL A: Enter number of panels n0 in each dt
+LBL A
+	HIR 02 		; STO H2, number of panels n0 in each dt
+	RTN 
+
+; LBL B: Enter time increment dt
+LBL B 
+	HIR 05 		; STO H5, time increment dt
+	RTN 
+
+; LBL C: Execute, continue with R/S
+LBL C 
+	; prepare
+	( HIR 15 	; RCL H5, time increment dt
+	/ HIR 12 ) 	; RCL H2, number of panels n0 in each dt
+	HIR 07 		; STO H7, time interval in panel ddt (=dt/n0)
+	0 
+	HIR 09 		; STO H9, number of sub-time steps
+	HIR 04 		; STO H4, current time t
+
+LBL 0FD
+	; prepare sub-time loop counter
+	HIR 12 		; RCL H2, number of panels n0 in each dt
+	HIR 39		; SUM H9, number of sub-time steps
+	HIR 19 		; RCL H9, number of sub-time steps
+	HIR 01 		; STO H1, sub-time loop counter
+	HIR 71		; Inc H1, increment loop counter
+
+	0 
+	HIR 06 		; STO H6, current sub-time ts
+	HIR 08 		; STO H8, result y(t)
+	HIR 15 		; RCL H5, time increment dt
+	HIR 34 		; SUM H4, current time t
+
+LBL 0FC
+	; suma(x(t)*h(tt-t))
+	( HIR 16 	; RCL H6, current sub-time ts
+	PGM 00 A' 	; x(t) input function
+	* ( HIR 14 	; RCL H4, current time t
+	- HIR 16 ) 	; RCL H6, current sub-time ts
+	PGM 00 B' ) 	; h(t) response function
+	HIR 38 		; SUM H8, result y(t)
+	HIR 38 		; SUM H8, result y(t)
+
+	; check if time = 0
+	HIR 96 		; Exc H6, current sub-time ts
+	CP 		; clear reg. T
+	EQ 0FB 		; check if time = 0
+
+	X/T 
+	HIR 14		; RCL H4, current time t
+	X/T 
+	EQ 0FB 
+
+	HIR 96 		; Exc H6, current sub-time ts
+	GTO 0FA 
+
+LBL 0FB
+	; time already 0
+	HIR 96 		; Exc H6, current sub-time ts
+	HIR 58 		; INV SUM H8, result y(t)
+
+LBL 0FA
+	; increase time by sub-step
+	HIR 17 		; RCL H7, time interval in panel ddt (=dt/n0)
+	HIR 36 		; SUM H6, current sub-time ts
+
+	; next sub-time sample
+	HIR 0E1 0FC	; DJNZ H1 0FC, decrement H1 and jump of not 0
+
+	; result * delta/2
+	( HIR 17 	; RCL H7, time interval in panel ddt (=dt/n0)
+	/ 2 ) 
+	HIR 48 		; Prd H8, result y(t)
+
+	; display result
+	OP 1E		; display mode X+T
+	HIR 14 		; RCL H4, current time t
+	X/T
+	HIR 18 		; RCL H8, result y(t)
+	RTN 
+
+	; next time sample
+	GTO 0FD

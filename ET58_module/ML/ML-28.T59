@@ -1,0 +1,125 @@
+; ML-28 (EE-07) Ratio conversions
+; ->P2/P1 ->U2/U1  ->Np  ->dB
+;  P2/P1   U2/U1    Np    dB 
+
+; LBL A: Enter power ratio P2/P1
+; LBL A': Get power ratio P2/P1
+; LBL B: Enter voltage ratio U2/U1 (or current ratio I2/I1)
+; LBL B': Get voltage ratio U2/U1 (or current ratio I2/I1)
+; LBL C: Enter Nepers Np
+; LBL C': Get Nepers Np
+; LBL D: Enter Decibels dB
+; LBL D': Get Decibels dB
+
+; Registers
+;  H1 ... power ratio P2/P1
+;  H2 ... voltage ratio U2/U1
+;  H3 ... Nepers Np
+;  H4 ... Decibels dB
+
+; convert P2/P1 to dB
+;  dB = 10*log(P1/P1)
+LBL 0F9
+	( HIR 11 	; RCL H1, get power ratio P2/P1
+	LOG 
+	* 1 0 ) 
+	HIR 04		; STO H4, save dB
+	RTN 
+
+; convert P2/P1 to Np
+;  Np = ln(P2/P1)/2
+LBL 0F8
+	( HIR 11 	; RCL H1, get power ratio P2/P1
+	LNX 
+	/ 2 ) 
+	HIR 03 		; STO H3, save Np
+	RTN 
+
+; convert Np to U2/U1
+;  U2/U1 = exp(Np)
+LBL 0F7
+	HIR 13		; RCL H3, get Np
+	INV LNX 	; exp
+	HIR 02		; STO H2, save U2/U1
+	RTN 
+
+; convert dB to P2/P1
+;  P2/P1 = exp10(dB/10)
+LBL 0F6
+	( HIR 14 	; RCL H4, get dB
+	/ 1 0 ) 
+	INV LOG 	; exp10
+	HIR 01 		; STO H1, save P2/P1
+	RTN
+
+; convert U2/U1 to dB
+;  db = 20*log10(V2/V1)
+LBL 0F5
+	( HIR 12 	; RCL H2, get U2/U1
+	LOG * 2 0 ) 	; log10
+	HIR 04 		; STO H4, save dB
+	RTN
+
+; convert U2/U1 to Np
+;  Np = ln(V2/V1)
+LBL 0F4
+	HIR 12 		; RCL H2, get U2/U1
+	LNX		; ln
+	HIR 03 		; STO H3, save Np
+	RTN
+
+; convert Np to P2/P1
+;  P2/P1 = exp(2*Np)
+LBL 0F3
+	( HIR 13 * 2 )	; RCL H3, get Np
+	INV LNX 	; exp
+	HIR 01 		; STO H1, save P2/P1
+	RTN
+
+; LBL A: Enter power ratio P2/P1
+LBL A
+	HIR 01		; STO H1, save power ratio P2/P1
+	SBR 0F9		; convert P2/P1 to dB
+	SBR 0F8		; convert P2/P1 to Np
+	SBR 0F7		; convert Np to U2/U1
+
+; LBL A': Get power ratio P2/P1
+LBL A'
+	HIR 11		; RCL H1, get P1/P2
+	RTN
+
+; LBL B: Enter voltage ratio U2/U1 (or current ratio I2/I1)
+LBL B 
+	HIR 02		; STO H2, save voltage ratio U2/U1
+	SBR 0F5		; convert U2/U1 to dB
+	SBR 0F6		; convert dB to P2/P1
+	SBR 0F4		; convert U2/U1 to Np
+
+; LBL B': Get voltage ratio U2/U1 (or current ratio I2/I1)
+LBL B'
+	HIR 12		; RCL H2, get U2/U1
+	RTN
+
+; LBL C: Enter Nepers Np
+LBL C 
+	HIR 03		; STO H3, save Nepers Np
+	SBR 0F3		; convert Np to P2/P1
+	SBR 0F9		; convert P2/P1 to dB
+	SBR 0F7		; convert Np to U2/U1
+
+; LBL C': Get Nepers Np
+LBL C'
+	HIR 13		; RCL 13, get Np
+	RTN
+
+; LBL D: Enter Decibels dB
+LBL D 
+	HIR 04		; STO H4, save Decibels dB
+	SBR 0F6		; convert dB to P2/P1
+	SBR 0F8		; convert P2/P1 to Np
+	SBR 0F7		; convert Np to U2/U1
+
+; LBL D': Get Decibels dB
+LBL D'
+	HIR 14		; RCL H4, get dB
+	RTN

@@ -1,0 +1,91 @@
+; ML-27 555 Circuit Astable Generator
+;   >C     >R1    >R2    >f    >tL
+;  C uF   R1 kO  R2 kO  f Hz   >tH ms
+
+; To get any of the value, other 3 values must be entered.
+
+; LBL A: Enter C [uF]
+; LBL A': Get C [uF]
+; LBL B: Enter R1 [kO] (charging resistor, to VCC)
+; LBL B': Get R1 [kO]
+; LBL C: Enter R2 [kO] (discharging resistor, to GND)
+; LBL C': Get R2 [kO]
+; LBL D: Enter f [Hz]
+; LBL D': Get f [Hz]
+; LBL E: Get tH (time High) [ms] ... C, R1 and R2 must be known
+; LBL E': Get tL (time Low) [ms] ... C and R2 must be known
+
+; Registers:
+;  H1 ... C [uF]
+;  H2 ... R1 [kO]
+;  H3 ... R2 [kO]
+;  H4 ... f [Hz]
+
+; LBL A': Get C [uF]
+;  C = 1000 / ln(2) / f / (R1 + 2*R2)
+LBL A'
+	( 1 0 0 0 / 2 LNX / ; constant 1000*1.44
+	( HIR 12	; RCL H2, get R1
+	+ 2 * HIR 13 )	; RCL H3, get R2
+	/ HIR 14 )	; RCL H4, get f
+
+; LBL A: Enter C [uF]
+LBL A
+	HIR 01		; STO H1, save C [uF]
+	RTN
+
+; LBL B': Get R1 [kO]
+;  R1 = 1000 / ln(2) / f / C - 2*R2
+LBL B'
+	( 1 0 0 0 / 2 LNX ; constant 1000*1.44
+	/ HIR 14	; RCL H4, get f
+	/ HIR 11	; RCL H1, get C
+	- 2 * HIR 13 )	; RCL H3, get R2
+
+; LBL B: Enter R1 [kO]
+LBL B
+	HIR 02		; STO H2, save R1
+	RTN
+
+; LBL C': Get R2 [kO]
+;  R2 = 500 / ln(2) / f / C - R1/2
+LBL C'
+	( 5 0 0 / 2 LNX ; constant 1000*1.44/2
+	/ HIR 14	; RCL H4, get f
+	/ HIR 11	; RCL H1, get C
+	- HIR 12 / 2 )	; RCL H2, get R1
+
+; LBL C: Enter R2 [kO]
+LBL C
+	HIR 03		; STO H3, save R2
+	RTN
+
+; LBL D': Get f [Hz]
+;  f = 1000 / ln(2) / ((R1 + 2*R2) * C)
+LBL D'
+	( 1 0 0 0 / 2 LNX / ; constant 1000*1.44
+	( HIR 12	; RCL H2, get R1
+	+ 2 * HIR 13 )	; RCL H3, get R2
+	/ HIR 11 )	; RCL H1, get C
+
+; LBL D: Enter f [Hz]
+LBL D
+	HIR 04		; STO H4, save f
+	RTN
+
+; LBL E: Get tH (time High) [ms]
+;  tH = ln(2) * (R1 + R2) * C
+LBL E
+	( 2 LNX *	; constant 0.693
+	( HIR 12	; RCL H2, get R1
+	+ HIR 13 )	; RCL H3, get R2
+	* HIR 11 )	; RCL H1, get C
+	RTN
+
+; LBL E': Get tL (time Low) [ms]
+;  tL = ln(2) * R2 * C
+LBL E'
+	( 2 LNX 	; constant 0.693
+	* HIR 13	; RCL H3, get R2
+	* HIR 11 )	; RCL H1, get C
+	RTN

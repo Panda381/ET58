@@ -1,0 +1,258 @@
+; ML-32 (EE-14) Passive lowpass filter
+;
+;   n    eps    R    fc   ->calc
+
+; LBL A: Enter order of the filter n
+; LBL B: Enter allowable ripple eps in dB (0 for Butterworth filter)
+; LBL C: Enter termination resistance R in ohms
+; LBL D: Enter cutoff frequency fc in Hz
+; LBL E: compute, display result values using R/S
+
+; Registers:
+;  H0 ... temporary save result
+;  H1 ... current index K
+;  H2 ... gamma
+;  H3 ... coefficient ak-1
+;  H4 ... coefficient ak
+;  H5 ... coefficient bk-1
+;  H6 ... coefficient gk-1
+;  H7 ... coefficient gk
+;  H8 ... Dsz counter
+;  H9 ... order of the filter n
+;  H10 ... allowable ripple eps in dB (0 for Butterworth filter)
+;  H11 ... termination resistance R in ohms
+;  H12 ... cutoff frequency fc in Hz
+
+;   -----*----L2---*----L4--- ... ---
+;  |     |         |                 |
+;  R    C1        C3                 R
+;  |     |         |                 |
+;   -----*---------*--------- ... ---
+
+; Enter order of the filter n
+LBL A 
+	HIR 09 		; STO H9, order of the filter n
+	RTN 
+
+; Enter allowable ripple eps in dB (0 for Butterworth filter)
+LBL B 
+	HIR 0A 		; STO H10, allowable ripple eps in dB (0 for Butterworth filter)
+	RTN 
+
+; Enter termination resistance R in ohms
+LBL C 
+	HIR 0B 		; STO H11, termination resistance R in ohms
+	RTN 
+
+; Enter cutoff frequency fc in Hz
+LBL D 
+	HIR 0C 		; STO H12, cutoff frequency fc in Hz
+	RTN 
+
+; compute, display result values using R/S
+LBL E 
+	; initialize
+	HIR 19 		; RCL H9, order of the filter n
+	HIR 08		; STO H8, initialize Dsz loop counter
+	0 HIR 01 	; STO H1, initialize current index K
+
+	; check eps, must be >= 0
+	CP 
+	HIR 1A 		; RCL H10, allowable ripple eps in dB (0 for Butterworth filter)
+	GE 0FE		; eps >= 0, OK
+
+	; error
+	CLR
+	1/X		; indicate error
+	RTN 
+
+LBL 0FE
+	; check if use Tchebycheff filter
+	INV EQ 0F8 	; eps > 0, use Tchebycheff filter
+
+; ---- Butterworth filter (eps = 0)
+
+LBL 0FD
+	; calculatete Ck
+	HIR 71		; Inc H1, increment current index K
+	SBR 0ED 	; Butterworth filter, calculate Ck = sin((2*K - 1)*PI/2/n) / (pi*fc*R)
+	X/T 3 5		; 'C' character
+	SBR 0F0 	; display current index (reg. T = result value, reg. X = 3 5 for C, 4 4 for L)
+	RTN 		; wait for R/S
+
+	; loop counter
+	HIR 0E8 0FA 	; DJNZ H8 0FA, Dsz loop counter, jump if H8 not 0
+LBL 0FB
+	; end of loop
+	PGM 03 SBR NOP	; display "Ready"
+	CP X/T
+	RTN
+
+LBL 0FA
+	; calculate Lk = Ck * R^2
+	HIR 71		; Inc H1, increment current index K
+	( SBR 0ED 	; Butterworth filter, calculate Ck = sin((2*K - 1)*PI/2/n) / (pi*fc*R)
+	* HIR 1B X2 ) 	; RCL H11, termination resistance R in ohms
+	X/T 4 4		; 'L' character
+	SBR 0F0 	; display current index (reg. T = result value, reg. X = 3 5 for C, 4 4 for L)
+	RTN 		; wait for R/S
+
+	; loop counter
+	HIR 0E8 0FD 	; DJNZ H8 0FD, Dsz loop counter, jump if H8 not 0
+	GTO 0FB 
+
+; ----- Tchebycheff filter
+
+LBL 0F8
+	; calculate beta = ln( coth ( eps/40*log10(e) ) )
+	( ( ( ( ( ( 2 *
+
+	; x = eps / (40 * log(e))
+	HIR 1A	 	; RCL H10, allowable ripple eps in dB (0 for Butterworth filter)
+	/ 4 0 
+	/ 1 INV LNX 	; = e
+	LOG )	 	; log10(e)
+
+	; exp(2*x)
+	+/- INV LNX 	; exp(2*x)
+
+	; coth = (exp(2*x) + 1) / (exp(2*x) - 1)
+	HIR 02 + 1 ) 	; STO H2, save temporary exp(2*x)
+	/ ( 1 - 
+	HIR 12 ) ) 	; RCL H2, get temporary exp(2*x)
+
+	; beta = ln
+	LNX 
+
+	; calculate gamma = sinh(beta/(2*n))
+	/ 2 
+	/ HIR 19 )	; RCL H9, order of the filter n
+	HIR 02 		; STO H2, gamma
+
+	; sinh = (exp(2*x) - 1) / (2*exp(x))
+	INV LNX 	; exp
+	- HIR 12 +/- 	; RCL H2, gamma
+	INV LNX ) 	; exp
+	/ 2 ) 
+	HIR 02 		; STO H2, gamma
+
+	HIR 71		; Inc H1, increment current index K
+
+LBL 0F7
+	; calculate next coefficients
+	SBR 0EE 	; calculate ak = sin((2*K - 1)*pi/2/n)
+	HIR 04 		; STO H4, coefficient ak
+	HIR 11 		; RCL H1, current index K
+	X/T 1 X/T	; reg. T = 1
+	EQ 0F6 		; first index K = 1
+	SBR 0EB 	; calculate coefficient gk = 4*ak-1*ak / (bk-1 * gk-1)
+	GTO 0F5 
+
+LBL 0F6
+	; calculate first coefficient g1 = 2*a1/gamma
+	( 2 * 
+	HIR 14 		; RCL H4, coefficient ak
+	/ HIR 12 ) 	; RCL H2, gamma
+
+LBL 0F5
+	; Tchebycheff - calculate Ck
+	HIR 07 		; STO H7, coefficient gk
+	SBR 0EC 	; calculate Ck = gk / (2*pi*fc*R)
+	X/T 3 5		; 'C' character
+	SBR 0F0 	; display current index (reg. T = result value, reg. X = 3 5 for C, 4 4 for L)
+	RTN 		; wait for R/S
+
+	; loop counter
+	HIR 0E8 0F3 	; DJNZ H8 0F3, Dsz loop counter, jump if H8 not 0
+	GTO 0FB 	; stop
+
+LBL 0F3
+	; prepare new coefficients
+	SBR 0EA 	; calculate coefficient bk = gamma^2 + sin(K*pi/n)^2, shift coefficients
+	SBR 0EE 	; calculate ak = sin((2*K - 1)*pi/2/n)
+	HIR 04 		; STO H4, coefficient ak
+	SBR 0EB 	; calculate coefficient gk = 4*ak-1*ak / (bk-1 * gk-1)
+	HIR 07 		; STO H7, coefficient gk
+
+	; Tchebycheff - calculate Lk
+	( SBR 0EC 	; calculate Ck = gk / (2*pi*fc*R)
+	* HIR 1B X2 ) 	; RCL H11, termination resistance R in ohms
+	X/T 4 4		; 'L' character
+	SBR 0F0 	; display current index (reg. T = result value, reg. X = 3 5 for C, 4 4 for L)
+	RTN 		; wait for R/S
+
+	; loop counter
+	HIR 0E8 0F1 	; DJNZ H8 0F1, Dsz loop counter, jump if H8 not 0
+	GTO 0FB 	; stop
+
+LBL 0F1
+	SBR 0EA 	; calculate coefficient bk = gamma^2 + sin(K*pi/n)^2, shift coefficients
+	GTO 0F7 
+
+; display current index (reg. T = result value, reg. X = 3 5 for C, 4 4 for L)
+LBL 0F0
+	X/T
+	HIR 00		; STO H0, temporary save value
+	3 OP 53 OP 01	; load text " Result" into register 1
+	HIR 11 		; RCL H1, current index K
+	X/T		; get character C or L	
+	OP 54		; add index from T reg.
+	0 0		; add space character
+	OP 02		; print Lk or Ck into register 2
+	OP 1F		; set display mode Text
+	OP 1A		; print registers 1 and 2 to 1st row of display while stop
+	HIR 10		; RCL H0, restore value
+	RTN
+
+; calculate ak = sin((2*K - 1)*pi/2/n)
+LBL 0EE
+	( ( 2 * 
+	HIR 11 		; RCL H1, current index K
+	- 1 ) * PI
+	/ 2 / 
+	HIR 19 ) 	; RCL H9, order of the filter n
+	OP 73		; convert angle from radians
+	SIN 
+	RTN 
+
+; Butterworth filter, calculate Ck = sin((2*K - 1)*PI/2/n) / (pi*fc*R)
+LBL 0ED
+	( SBR 0EE 	; calculate ak = sin((2*K - 1)*pi/2/n)
+	/ PI 
+	/ HIR 1C 	; RCL H12, cutoff frequency fc in Hz
+	/ HIR 1B ) 	; RCL H11, termination resistance R in ohms
+	RTN
+
+; calculate Ck = gk / (2*pi*fc*R)
+LBL 0EC
+	( HIR 17 	; RCL H7, coefficient gk
+	/ 2 / PI 
+	/ HIR 1C 	; RCL H12, cutoff frequency fc in Hz
+	/ HIR 1B ) 	; RCL H11, termination resistance R in ohms
+	RTN 
+
+; calculate coefficient gk = 4*ak-1*ak / (bk-1 * gk-1)
+LBL 0EB
+	( 4 * 
+	HIR 13 		; RCL H3, coefficient ak-1
+	* HIR 14	; RCL H4, coefficient ak
+	/ HIR 15 	; RCL H5, coefficient bk-1
+	/ HIR 16 ) 	; RCL H6, coefficient gk-1
+	RTN 
+
+; calculate coefficient bk = gamma^2 + sin(K*pi/n)^2, shift coefficients
+LBL 0EA
+	( ( HIR 11 	; RCL H1, current index K
+	* PI 		; * pi
+	/ HIR 19 ) 	; RCL H9, order of the filter n
+	OP 73		; convert angle from radians
+	SIN 		; sinus
+	X2 		; x^2
+	+ HIR 12 X2 ) 	; RCL H2, gamma^2
+	HIR 05 		; STO H5, coefficient bk-1
+	HIR 14 		; RCL H4, coefficient ak
+	HIR 03 		; STO H3, coefficient ak-1
+	HIR 17 		; RCL H7, coefficient gk
+	HIR 06 		; STO H6, coefficient gk-1
+	HIR 71		; Inc H1, increment current index K
+	RTN

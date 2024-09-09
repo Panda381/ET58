@@ -1,0 +1,41 @@
+
+ATmega328P fuse: low 42 (default 62), high D1 (default D9), ext FE (default FF)
+
+low: bit 4,5 = SUT[1:0] for value 0 the BOD is on (brown-out detection),
+	bit 7: presets the RC division to 8 (i.e. starts with a frequency of 8 MHz)
+
+high: bit 3: 0=do not erase EEPROM during programming
+
+ext: BODLEVEL[2:0] = 110 = 1.7..2.0 V
+
+
+
+
+boot loader:
+  ATmega328P fuse: low E2 (default 62), high D2 (default D9), ext FF (default FF)
+  (fuse high bit 3: 0=do not erase EEPROM during programming)
+  (reset vector BOOT, boot size 2 KB)
+
+
+
+Supported processors:
+
+ATmega48 (atmega48, atmega48p), 65,- 4K ROM, 512 RAM, 256 EE https://www.gme.cz/atmega48-20pu-dil28-atmel
+ATmega88PA (atmega88, atmega88p, atmega88pa), 55,- 8K ROM, 1K RAM, 512 EE https://www.gme.cz/atmega88pa-pu-dil28-atmel
+ATmega8L (atmega8), 68,- 8K ROM, 1K RAM, 512 EE https://www.gme.cz/atmega8l-8pu-dil28-atmel
+ATmega8A (atmega8), 68,- 8K ROM, 1K RAM, 512 EE https://www.gme.cz/atmega8a-pu-dip28-atmel
+ATmega328P (atmega328, atmega328p), 73,- 32K ROM, 2K RAM, 1K EE https://www.gme.cz/atmega328p-pu-sdip28-atmel
+ATmega168 (atmega168, atmega168p), 89,- 16K ROM, 1K RAM, 512 EE https://www.gme.cz/atmega168-20pu-dil28-atmel
+
+atmega48
+atmega48p
+atmega8
+atmega88
+atmega88p
+atmega88pa
+atmega168
+atmega168p
+atmega328
+atmega328p
+
+TI error test: http://www.datamath.org/Story/LogarithmBug.htm

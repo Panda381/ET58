@@ -1,0 +1,44 @@
+; ML-25 Unit conversions (2)
+;  °C->°F  lit->oz  lit->gal  grm->oz  kg->lb
+;  °F->°C  oz->lit  gal->lit  oz->grm  lb->kg
+
+; LBL A: °F to °C
+; LBL B: fluid ounces to liters
+; LBL C: gallons (U.S.) to liters
+; LBL D: ounces (av.) to grams
+; LBL E: pounds (av.) to kilograms
+; LBL A': °C to °F
+; LBL B': liters to fluid ounces
+; LBL C': liters to gallons (U.S.)
+; LBL D': grams to ounces (av.)
+; LBL E': kilograms to pounds (av.)
+
+;  A: °F to °C
+LBL A ( ( CE - 3 2 ) * 5 / 9 ) RTN
+
+;  B: fluid ounces to liters
+LBL B ( CE * . 0 2 9 5 7 3 5 2 9 6 ) RTN
+
+;  C: gallons (U.S.) to liters
+LBL C ( CE * 3 . 7 8 5 4 1 1 7 8 4 ) RTN
+
+;  D: ounces (av.) to grams
+LBL D ( CE * 2 8 . 3 4 9 5 2 3 1 3 ) RTN
+
+;  E: pounds (av.) to kilograms
+LBL E ( CE * . 4 5 3 5 9 2 3 7 ) RTN
+
+;  A': °C to °F
+LBL A' ( CE * 1 . 8 + 3 2 ) RTN
+
+;  B': liters to fluid ounces
+LBL B' 1/X B 1/X RTN
+
+;  C': liters to gallons (U.S.)
+LBL C' 1/X C 1/X RTN
+
+;  D': grams to ounces (av.)
+LBL D' 1/X D 1/X RTN
+
+;  E': kilograms to pounds (av.)
+LBL E' 1/X E 1/X RTN

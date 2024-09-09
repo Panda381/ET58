@@ -1,0 +1,70 @@
+; ML-05 Complex Functions
+;    INIT   e^x   x^2   P->R  DEL
+;    ENTER  ln X  sqrt  R->P  1/X
+
+; LBL A: enter number into stack (to use: enter real part, press X/T, enter imaginary part, press A)
+; LBL A': initialize stack to memory registers R10..R29
+; LBL B: ln(x)
+; LBL B': exp(x)
+; LBL C: sqrt(x)
+; LBL C': x^2
+; LBL D: convert to polar
+; LBL D': convert from polar
+; LBL E: reciprocal value 1/x
+; LBL E': delete number from stack, show number of numbers in the stack
+
+; Registers:
+;  R10..R29 stack of 10 complex numbers
+
+; LBL A: Enter number into the stack (enter real part, press X/T, enter imaginary part, press A)
+LBL A
+	OP 57	; store number to the stack
+	RTN
+
+; LBL A': Initialize stack of complex numbers
+LBL A'
+	PGM 04 A'
+	RTN
+
+; LBL B: logarithm ln(x)
+LBL B
+	OP 67	; logarithm
+LBL =
+	OP 58	; load result
+	RTN
+
+; LBL B': exponent exp(x)
+LBL B'
+	OP 66	; exponent
+	GTO =
+
+; LBL C: square root x
+LBL C
+	OP 64	; square root
+	GTO =
+
+; LBL C': square x^2
+LBL C'
+	OP 63	; square
+	GTO =
+
+; LBL D: convert to polar
+LBL D
+	OP 6E	; to polar
+	GTO =
+
+; LBL D': convert from polar
+LBL D'
+	OP 6F	; from polar
+	GTO =
+
+; LBL E: reciprocal value 1/X
+LBL E
+	OP 65	; reciprocal value
+	GTO =
+
+; LBL E': delete number from the stack
+LBL E'
+	OP 59	; delete number
+	OP 56	; get number of numbers
+	RTN

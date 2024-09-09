@@ -1,0 +1,78 @@
+; ML-14 Normal Distribution
+; GRAPH  GRAPH   GRAPH
+; Z(x)    Q(x)    P(x)
+
+; LBL A: standard normal distribution - probability density Z(x) ... range x = -150..+150
+;        +1 and -1 are inflection points
+; LBL B: complementary Gaussian distribution function - upper cumulative Q(x) (CGD, Q-function) ... range x = -8..+8
+;        (= area of normal distribution above x)
+; LBL C: cumulative normal distribution function - lower cumulative P(x) = 1 - Q(x), (CND, CDF) ... range x = -8..+8
+;        (= area of normal distribution below x)
+; LBL A', LBL B', LBL C': draw graph
+
+; Registers:
+;  R01 ... OP index to draw graph
+;  H2 ... column index to draw graph
+;  H3 ... multiplier to draw graph
+
+; LBL A: standard normal distribution Z(x)
+LBL A
+	OP 74
+	RTN
+
+; LBL B: complementary Gaussian distribution Q(x)
+LBL B
+	OP 75
+	RTN
+
+; LBL C: cumulative normal distribution P(x) = 1 - Q(x)
+LBL C
+	OP 76
+	RTN
+
+; LBL A': graph Z(x)
+LBL A'
+	CLR
+	1 1 6		; OP 74
+	STO 01		; save OP code
+	4 0		; multiplier
+	GTO OP
+
+; LBL B': graph Q(x)
+LBL B'
+	CLR
+	1 1 7		; OP 75
+	STO 01		; save OP code
+	GTO DEG
+
+; LBL C': graph P(x)
+LBL C'
+	CLR
+	1 1 8		; OP 76
+	STO 01		; save OP code
+LBL DEG
+	1 7		; multiplier
+LBL OP
+	HIR 03		; STO H3, multiplier
+	1 5		; column index
+	HIR 02		; STO H2, column index 0..15
+LBL RAD
+	HIR 12		; RCL H2, column index 0..15
+	- X/T 7 . 5 =	; x range -7.5..+7.5
+	/ 3 =		; x range -3.25..+3.25
+	OP* 01		; calculate distribution
+	* HIR 13 =	; RCL H3, * multipler, y range 0..16
+	OP 4B		; display graph column
+
+	HIR 82		; Dec H2, column index
+	HIR 12		; RCL H2
+	CP		; clear T
+	GE RAD		; if >= 0, go loop
+
+	2 5 5 X/T	; 255 = no key flag
+
+LBL LBL ; wait for a key
+	OP 40		; input key from keyboard
+	EQ LBL
+	CLR
+	RTN

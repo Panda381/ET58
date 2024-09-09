@@ -1,0 +1,99 @@
+; ML-44 (LE-09) Codebreaker Game
+;
+;  Guess                Start
+
+; LBL A: Guess 4-digit number 1..9, returns N.R, N=digits on position, R=digits on wrong locations, 4.0=all correct.
+; LBL E: Start new game
+
+; Registers
+;  H1 ... index of generated digit
+;  H2 ... index of checked digit
+;  H3 ... guessed number NNNN
+;  H4 ... result accumulator
+
+;  R01..R04 ... digits pattern NNNN
+
+
+; LBL E: Start new game
+LBL E
+	CLR
+	HIR 01		; STO H1, index of generated digit
+
+	; clear digits pattern (to avoid generate digit 0)
+	STO 01
+	STO 02
+	STO 03
+	STO 04
+LBL 0FD
+	; increment index of generated digit
+	HIR 71		; Inc H1, increment index of generated digit
+LBL 0FC
+	; prepare index of checked digit
+	HIR 11		; RCL H1, index of generated digit
+	HIR 02		; STO H2, index of checked digit
+
+	; generate new digit -> reg. T
+	( RND * 1 0 )	; random number generator
+	INT 		; get digit
+	X/T 
+LBL 0FB
+	; check digits (avoid generate digit '0' and repeat digits)
+	HI* 12		; RCL Ind H2, get checked digit
+	EQ 0FC	 	; digit already generated, get another digit
+	HIR 0E2 0FB	; DJNZ H2 0FB, check next digit
+
+	; store new digit
+	4
+	X/T 
+	HI* 01		; STO Ind H1, store generated digit
+
+	; next digit
+	HIR 11		; RCL H1, get index of generated digit
+	INV GE 0FD	; generate next digit
+	0 
+	RTN 
+
+; LBL A: Guess 4-digit number, returns N.R, N=digits on position, R=digits on wrong locations.
+LBL A 
+	HIR 03		; STO H3, save guessed number
+	4 HIR 01 	; STO H1, set counter of digits to check
+	CLR HIR 04	; STO H4, clear result accumulator
+LBL 0FA
+	; get last digit .N
+	( HIR 13	; RCL H3, get guessed number
+	/ 1 0 ) 	; / 10
+	HIR 03 		; TO H3, set new guessed number
+	INV INT 	; fraction = last digit
+
+	; last digit N -> reg. T
+	( HIR 53 	; INV SUM H3, subtract last digit
+	* 1 0 ) ROU	; * 10 = last digit
+	HIR 23		; Round H3
+	X/T 		; last digit to check -> reg. T
+
+	; search digit in pattern
+	4 HIR 02 	; STO H2, index of last digit of pattern
+LBL 0F9
+	HI* 12 		; RCL Ind H2, get digit of pattern
+	EQ 0F8	 	; digit is OK
+	HIR 0E2 0F9 	; check anothe digit of pattern
+	GTO 0F6		; check anothes guessed digit
+
+	; digit is OK, check position and add score
+LBL 0F8
+	HIR 12 		; RCL H2, index of digit of pattern
+	X/T 
+	HIR 11 		; RCL H1, index of guessed digit
+	EQ 0F7		; positions are equal, add '1'
+	.		; not position, add '.1'
+LBL 0F7
+	1 HIR 34 	; SUM H4, add to accumulator
+
+	; try next guessed digit
+LBL 0F6
+	HIR 0E1 0FA 	; next guessed digit
+
+	; get result accumulator
+	HIR 14		; get result
+	FIX 1 
+	RTN 

@@ -1,0 +1,190 @@
+; ML-31 (EE-13) Active filter (band pass BP, low pass LP, high pass HP)
+;  C1    C2   ->BP   ->LP   ->HP
+; alpha  A     F      B
+
+; LBL A: Enter peaking factor alpha (LP, HP)
+; LBL B: Enter voltage gain A in dB
+; LBL C: Enter cutout or center frequency in Hz
+; LBL D: Enter 3-dB bandwidth B in Hz
+; LBL A': Enter capacitance C1 in farads
+; LBL B': Enter capacitance C2 in farads
+; LBL C': Compute bandpass: R1, R2, R3 (continue with R/S)
+; LBL D': Compute lowpass: C, R1, R2, R3 (continue with R/S)
+; LBL E': Compute highpass: C, R1, R2 (continue with R/S)
+
+; Bandpass filter:
+;          -------*----------
+;          |      |         |
+;          C1     R3        |
+;          |      |         |
+;    --R1--*--C2--*---|-\   |
+;          |          |  \--*----
+;   Ei     R2         |  /      Eo
+;          |      ----|+/
+;    ------*------*--------------
+
+; Lowpass filter:
+;          -------*----------
+;          |      |         |
+;          R2     C1        |
+;          |      |         |
+;    --R1--*--R3--*---|-\   |
+;          |          |  \--*----
+;   Ei     C          |  /      Eo
+;          |      ----|+/
+;    ------*------*--------------
+
+; Highpass filter:
+;          -------*----------
+;          |      |         |
+;          C      R1        |
+;          |      |         |
+;    --C2--*--C2--*---|-\   |
+;          |          |  \--*----
+;   Ei     R2         |  /      Eo
+;          |      ----|+/
+;    ------*------*--------------
+
+; Registers:
+;  H1 ... peaking factor alpha (LP, HP)
+;  H2 ... voltage gain H0 (from A in dB: 10^(A/20))
+;  H3 ... frequency F in Hz
+;  H4 ... capacitance C1 in farads
+;  H5 ... capacitance C2 in farads
+;  H6 ... quality factor Q (= F / B)
+;  H7 ... 3-dB bandwidth B in Hz
+;  H8 ... angle speed omega (from F in Hz: 2*pi*F)
+;  H9 ... temporary: resistor R1, R2
+
+; Enter peaking factor alpha (LP, HP)
+LBL A 
+	HIR 01 		; STO H1, peaking factor alpha (LP, HP)
+	RTN 
+
+; Enter voltage gain A in dB
+LBL B 
+	( HIR 02 	; STO H2, voltage gain H0 (from A in dB: 10^(A/20))
+	/ 2 0 )
+	INV LOG 	; exp10
+	HIR 92 		; Exc H2, voltage gain H0 (from A in dB: 10^(A/20))
+	RTN 
+
+; Enter cutout or center frequency in Hz
+LBL C 
+	( HIR 03 	; STO H3, frequency F in Hz
+	HIR 08		; STO H8, angle speed omega (from F in Hz: 2*pi*F)
+	* 2 * PI ) 
+	HIR 98 		; Exc H8, angle speed omega (from F in Hz: 2*pi*F)
+	RTN 
+
+; Enter 3-dB bandwidth B in Hz
+LBL D 
+	HIR 07 		; STO H7, 3-dB bandwidth B in Hz
+	RTN 
+
+; Enter capacitance C1 in farads
+LBL A' 
+	HIR 04 		; STO H4, capacitance C1 in farads
+	RTN 
+
+; Enter capacitance C2 in farads
+LBL B' 
+	HIR 05 		; STO H5, capacitance C2 in farads
+	RTN 
+
+; Compute bandpass: R1, R2, R3 (continue with R/S)
+LBL C' 
+	; prepare quality factor Q = F/B
+	( HIR 13 	; RCL H3, frequency F in Hz
+	/ HIR 17 ) 	; RCL H7, 3-dB bandwidth B in Hz
+	HIR 06 		; STO H6, quality factor Q (= F / B)
+	X/T 		; save Q to T register
+
+	; check if Q > sqrt(H0/2)
+	( HIR 12 	; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	/ 2 ) 
+	SQR 		; sqrt(H0/2)
+	INV GE X2	; quality is OK
+	0 1/X 		; error
+	RTN 
+
+LBL X2
+	; get R1 = Q / (2*pi*F*H0*C1)
+	( HIR 16 	; RCL H6, quality factor Q (= F / B)
+	/ HIR 12 	; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	/ HIR 18 	; RCL H8, angle speed omega (from F in Hz: 2*pi*F)
+	/ HIR 14 ) 	; RCL H4, capacitance C1 in farads
+	HIR 09		; STO H9, temporary save R1
+	RTN 
+
+	; get R2 = 1 / (Q * (C1 + C2)*2*pi*F - 1/R1)
+	( ( HIR 14 	; RCL H4, capacitance C1 in farads
+	+ HIR 15 ) 	; RCL H5, capacitance C2 in farads
+	* HIR 16 	; RCL H6, quality factor Q (= F / B)
+	* HIR 18	; RCL H8, angle speed omega (from F in Hz: 2*pi*F)
+	- HIR 19 1/X )	; RCL H9, temporary R1
+	1/X 	
+	RTN 
+
+	; get R3 = Q / (2*pi*F) * (1/C1 + 1/C2)
+	( ( HIR 14 1/X 	; RCL H4, capacitance C1 in farads
+	+ HIR 15 1/X ) 	; RCL H5, capacitance C2 in farads
+	* HIR 16 	; RCL H6, quality factor Q (= F / B)
+	/ HIR 18 ) 	; RCL H8, angle speed omega (from F in Hz: 2*pi*F)
+	RTN 
+
+; Compute lowpass: C, R1, R2, R3 (continue with R/S)
+LBL D'
+	; get C = 4*(1 + H0)*C1 / alpha^2
+	( ( 1 + 
+	HIR 12 ) 	; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	* HIR 14 	; RCL H4, capacitance C1 in farads
+	* 4 
+	/ HIR 11 X2 ) 	; RCL H1, peaking factor alpha (LP, HP)
+	RTN
+
+	; prepare R2 = alpha / (4*pi*F*C1)
+	( HIR 11 / 2 	; RCL H1, peaking factor alpha (LP, HP)
+	/ HIR 18 	; RCL H8, angle speed omega (from F in Hz: 2*pi*F)
+	/ HIR 14 ) 	; RCL H4, capacitance C1 in farads
+	HIR 09 		; STO H9, temporary save R2
+
+	; get R1 = R2 / H0
+	( CE 		; R2
+	/ HIR 12 ) 	; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	RTN 
+
+	; get R2
+	HIR 19		; RCL H9, temporary R2
+	RTN
+
+	; get R3 = R2 / (H0 + 1)
+	( HIR 19 	; RCL H9, temporary R2
+	/ ( HIR 12 	; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	+ 1 ) ) 
+	RTN 
+
+; Compute highpass: C, R1, R2 (continue with R/S)
+LBL E' 
+	; get C = C2 / H0
+	( HIR 15 	; RCL H5, capacitance C2 in farads
+	/ HIR 12 ) 	; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	RTN 
+
+	; get R1 = (2*H0 + 1) / (2*pi*F*alpha*C2)
+	( ( 2 * 
+	HIR 12 		; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	+ 1 ) 
+	/ HIR 11 	; RCL H1, peaking factor alpha (LP, HP)
+	/ HIR 18 	; RCL H8, angle speed omega (from F in Hz: 2*pi*F)
+	/ HIR 15 ) 	; RCL H5, capacitance C2 in farads
+	RTN 
+
+	; get R2 = alpha / (2*pi*F*C2*(2 + 1/H0))
+	( HIR 11 	; RCL H1, peaking factor alpha (LP, HP)
+	/ HIR 18 	; RCL H8, angle speed omega (from F in Hz: 2*pi*F)
+	/ HIR 15 	; RCL H5, capacitance C2 in farads
+	/ ( 2 + 
+	HIR 12 		; RCL H2, voltage gain H0 (from A in dB: 10^(A/20))
+	1/X ) ) 
+	RTN 

@@ -1,0 +1,199 @@
+; ML-12 Triangle Solution (2)
+;
+;  SAA  AAS  ASA  AREA  PERIM
+
+;          A
+;        /   \
+;       /c   b\
+;      /   a   \
+;     B ------- C
+
+; LBL A: method SAA, enter side a, angle A and B, get sides b and c and angle C
+; LBL B: method AAS, enter angles A and C and side a, get sides b and c and angle B
+; LBL C: method ASA, enter angle B, side a, angle C, get side b, c and angle A
+; LBL D: calculate triangle area (from 3 sides)
+; LBL E: calculate triangle perimeter (from 3 sides)
+
+; Registers:
+;  H1 ... side a
+;  H2 ... side b
+;  H3 ... side c
+;  H4 ... angle A
+;  H5 ... angle B
+;  H6 ... angle C
+;  H7 ... saved last value, triangle perimeter
+
+; ===== calculate angle A from angles B and C
+;   A + B + C = 180° (pi)
+LBL tan
+	( 1 +/- INV COS	; 180 degrees
+	- HIR 15	; RCL H5, angle B
+	- HIR 16 )	; RCL H6, angle C
+	HIR 04		; angle A
+	RTN
+
+; ===== calculate angle B from angles A and C
+;   A + B + C = 180° (pi)
+LBL EXC
+	( 1 +/- INV COS	; 180 degrees
+	- HIR 14	; RCL H4, angle A
+	- HIR 16 )	; RCL H6, angle C
+	HIR 05		; angle B
+	RTN
+
+; ===== calculate side b from side a and angles A and B
+;   sin(B) = sin(A)*b/a ... law of sines (sine rule)
+LBL LNX
+	( HIR 15 SIN	; RCL H5, angle B
+	* HIR 11	; RCL H1, side a
+	/ HIR 14 SIN )	; RCL H4, angle A
+	HIR 02		; STO H2, side b
+	RTN
+	
+; ===== calculate side c from side a and angles A and C
+;   sin(C) = sin(A)*c/a ... law of sines (sine rule)
+LBL X2
+	( HIR 16 SIN	; RCL H6, angle C
+	* HIR 11	; RCL H1, side a
+	/ HIR 14 SIN )	; RCL H4, angle A
+	HIR 03		; STO H3, side c
+	RTN
+
+; LBL A: method SAA, enter side a, angle A and B, get sides b and c and angle C
+;   A + B + C = 180° (pi)
+;   sin(B) = sin(A)*b/a ... law of sines (sine rule)
+LBL A
+	; enter side a
+	PGM 11 SBR 0F1	; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; enter angle A
+	PGM 11 SBR 0F5	; prompt to enter angle A
+	RTN
+	HIR 04		; STO H4, save angle A
+
+	; enter angle B
+	PGM 11 SBR 0F6	; prompt to enter angle B
+	RTN
+	HIR 05		; STO H5, save angle B
+
+	; calculate angle C from angles A and B
+	PGM 11 SBR sin
+
+	; calculate side b from side a and angles A and B
+	SBR LNX
+	
+	; calculate side c from side a and angles A and C
+	SBR X2
+
+	; view side b
+	PGM 11 SBR 0E2	; info to view side b
+	RTN
+
+	; view side c
+	PGM 11 SBR 0E3	; info to view side c
+	RTN
+
+	; view angle C
+	PGM 11 SBR 0E7	; info to view angle C
+	RTN
+
+	; calculate triangle area
+	GTO D
+
+; LBL B: method AAS, enter angles A and C and side a, get sides b and c and angle B
+;   A + B + C = 180° (pi)
+;   sin(B) = sin(A)*b/a ... law of sines (sine rule)
+LBL B
+	; enter angle A
+	PGM 11 SBR 0F5	; prompt to enter angle A
+	RTN
+	HIR 04		; STO H4, save angle A
+
+	; enter angle C
+	PGM 11 SBR 0F7	; prompt to enter angle C
+	RTN
+	HIR 06		; STO H6, save angle C
+
+	; enter side a
+	PGM 11 SBR 0F1	; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; calculate angle B from angles A and C
+	SBR EXC
+
+	; calculate side b from side a and angles A and B
+	SBR LNX
+	
+	; calculate side c from side a and angles A and C
+	SBR X2
+
+	; view side b
+	PGM 11 SBR 0E2	; info to view side b
+	RTN
+
+	; view side c
+	PGM 11 SBR 0E3	; info to view side c
+	RTN
+
+	; view angle B
+	PGM 11 SBR 0E6	; info to view angle B
+	RTN
+
+	; calculate triangle area
+	GTO D
+
+; LBL C: method ASA, enter angle B, side a, angle C, get side b, c and angle A
+;   A + B + C = 180° (pi)
+;   sin(B) = sin(A)*b/a ... law of sines (sine rule)
+LBL C
+	; enter angle B
+	PGM 11 SBR 0F6	; prompt to enter angle B
+	RTN
+	HIR 05		; STO H5, save angle B
+
+	; enter side a
+	PGM 11 SBR 0F1	; prompt to enter side a
+	RTN
+	HIR 01		; STO H1, save side a
+
+	; enter angle C
+	PGM 11 SBR 0F7	; prompt to enter angle C
+	RTN
+	HIR 06		; STO H6, save angle C
+
+	; calculate angle A from angles B and C
+	SBR tan
+
+	; calculate side b from side a and angles A and B
+	SBR LNX
+	
+	; calculate side c from side a and angles A and C
+	SBR X2
+
+	; view side b
+	PGM 11 SBR 0E2	; info to view side b
+	RTN
+
+	; view side c
+	PGM 11 SBR 0E3	; info to view side c
+	RTN
+
+	; view angle A
+	PGM 11 SBR 0E5	; info to view angle A
+	RTN
+
+; LBL D: calculate triangle area (from 3 sides)
+LBL D
+	PGM 11 E
+	RTN
+
+; LBL E: calculate triangle perimeter (from 3 sides)
+LBL E
+	PGM 11 E'
+	RTN
+
+	CLR
+	RTN
